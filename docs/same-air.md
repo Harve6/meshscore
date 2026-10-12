@@ -55,11 +55,13 @@ Nothing. With no peers known there is no wait and no check beyond a dictionary l
 
 ## Limits - please read
 
-* **The very first time two bots meet** (neither has heard the other, no `peers` declared) they may both post the same
+* **The first time two bots meet** (neither has heard the other, no `peers` declared) they may both post the same
   alert once. They learn of each other from that post, and from then on the line-up keeps them to one. (Tested:
-  `test_first_meeting_can_double_post_once_then_never_again`.)
-* If the bot in front and the next one in line have *different* views of who exists, they can compute different
-  positions until they've both heard each other. The state converges after one alert each.
+  `test_first_meeting_can_double_post_once_then_never_again`.) A bot that stays silent because someone else already
+  spoke never reveals itself, so a pair can also meet a few alerts in. Rule of thumb: at most one double post per *pair*
+  of bots, then exactly one post per alert (tested with three bots starting at random moments).
+* Until a pair has met, the two can compute different line-up positions; they agree as soon as they've both heard each
+  other. Declaring `peers` removes even that.
 * Dedupe is by *content*. If two bots watch the same game from data feeds that disagree for a moment (one has the goal,
   the other doesn't yet) you may see the second bot's post a few seconds later with a different clock - that's two
   genuinely different pieces of information, not a duplicate.

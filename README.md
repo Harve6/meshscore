@@ -142,11 +142,12 @@ Point `[plugins] dirs = ["./my_plugins"]` at the folder (or publish it with a `m
 
 ```bash
 pip install -e ".[dev]"
-pytest -m "not network"      # fast, offline: config, same-air simulations, plugin loading, wizard
-pytest                       # also replays real games from the live league APIs (needs internet)
+pytest -m "not network"      # everything offline, ~2 min: unit, property-based, whole-game replays, chaos, recorded real-data suites
+pytest -m network            # the same suites against the live league APIs (feed-drift canary)
 ```
 
-The real-data suites pin specific past games, so they do not depend on what is being played today.
+The alert logic is replayed against **real finished games** at every polling rhythm, with a restart at every point, and
+against flaky feeds and dropping radios. How it works and how to add a case: [TESTING.md](TESTING.md).
 
 ## Contributing
 

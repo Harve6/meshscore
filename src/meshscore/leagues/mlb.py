@@ -21,6 +21,7 @@ log = logging.getLogger("meshscore")
 # MLB - any team   (statsapi.mlb.com, no key needed)
 # ==========================================================================
 MLB_API = "https://statsapi.mlb.com/api"
+FEED_LAG_WAIT = 8      # seconds to wait for the play feed to catch up with the (earlier-updating) scoreboard
 DIVISIONS = {"ale": 201, "alc": 202, "alw": 200, "nle": 204, "nlc": 205, "nlw": 203}
 DIV_ALIAS = {"east": "ale", "central": "alc", "west": "alw"}
 
@@ -456,7 +457,7 @@ class MlbBase:
             except (TypeError, KeyError, IndexError):
                 pass
             if attempt == 0:
-                await asyncio.sleep(8)  # the feed can lag the scoreboard by a few seconds
+                await asyncio.sleep(FEED_LAG_WAIT)  # the feed can lag the scoreboard by a few seconds
         return None
 
 
@@ -688,6 +689,16 @@ class MlbModule(MlbBase, PhaseMixin, ModeMixin):
             evs.append(("final", [fit(f"{text} | {series_line(g)}" if series_line(g) else f"{text} | {self.code} {g.rec_of(self.team_id)}")]))
         return start_first(evs)
 
+    @staticmethod
+    def plain_events(g, prev):
+        """What to say if the detailed alert logic hit an unexpected error: just the score change and the final."""
+        score, evs = f"{g.away} {g.ar}-{g.hr} {g.home}", []
+        if g.ar >= prev["ar"] and g.hr >= prev["hr"] and (g.ar, g.hr) != (prev["ar"], prev["hr"]):
+            evs.append(("run", [f"⚾ Run | {score} | {g.inn_txt}".rstrip(" |")]))
+        if g.final and prev["state"] != "final":
+            evs.append(("final", [f"🛑 FINAL: {g.away} {g.ar} @ {g.home} {g.hr}"]))
+        return evs
+
     async def process(self, games):
         games = [g for g in games if self.phase_ok(g)]     # skip spring training / regular season / playoff games that are switched off
         seen = set()
@@ -698,7 +709,12 @@ class MlbModule(MlbBase, PhaseMixin, ModeMixin):
             if prev is None:
                 self.thirds[g.pk] = {n for n in (3, 6) if g.live and n < g.inning}      # already past when we started watching
                 continue  # first sighting: baseline only
-            for kind, texts in await self.events(g, prev):
+            try:
+                evs = await self.events(g, prev)
+            except Exception:
+                log.exception("%s: alert logic failed for game %s - sending a plain update", self.name, g.pk)
+                evs = self.plain_events(g, prev)
+            for kind, texts in evs:
                 self.emit(kind, texts)
         for pk in set(self.gstate) - seen:
             del self.gstate[pk]

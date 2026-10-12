@@ -23,8 +23,8 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: pip install -e ".[dev]"
       - run: ruff check .
-      - name: Offline tests
-        run: pytest -m "not network" -q
+      - name: Offline tests (unit, property, game replays, chaos, recorded real-data suites)
+        run: pytest -m "not network" -q --cov=meshscore --cov-report=term
       - name: CLI smoke test
         run: |
           meshscore --version

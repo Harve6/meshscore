@@ -18,8 +18,8 @@ Thanks for helping. MeshScore lives on shared radio airtime, so the guiding rule
 git clone https://github.com/Harve6/meshscore && cd meshscore
 python -m venv .venv && . .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
-pytest -m "not network"     # offline tests (fast)
-pytest                      # + real-data suites (needs internet; each gets one retry)
+pytest -m "not network"     # everything offline, ~2 min (details: TESTING.md)
+pytest -m network           # the live-API canary (needs internet)
 ruff check .
 ```
 

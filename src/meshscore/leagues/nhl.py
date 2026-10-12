@@ -398,6 +398,16 @@ class NhlModule(PhaseMixin, ModeMixin):
         self._bg.add(task)
         task.add_done_callback(self._bg.discard)
 
+    @staticmethod
+    def plain_events(g, prev):
+        """What to say if the detailed alert logic hit an unexpected error: just the score change and the final."""
+        score, evs = f"{g.away} {g.ar}-{g.hr} {g.home}", []
+        if g.ptype != "SO" and g.ar >= prev["ar"] and g.hr >= prev["hr"] and (g.ar, g.hr) != (prev["ar"], prev["hr"]):
+            evs.append(("goal", [f"🚨 Goal | {score}"]))
+        if g.final and prev["state"] != "final":
+            evs.append(("final", [f"🛑 FINAL: {g.away} {g.ar} @ {g.home} {g.hr}"]))
+        return evs
+
     async def process(self, games):
         games = [g for g in games if self.phase_ok(g)]     # skip preseason / regular season / playoff games that are switched off
         seen = set()
@@ -407,7 +417,12 @@ class NhlModule(PhaseMixin, ModeMixin):
             prev, self.gstate[g.id] = self.gstate.get(g.id), cur
             if prev is None:
                 continue  # first sighting: baseline only
-            for kind, texts in await self.events(g, prev):
+            try:
+                evs = await self.events(g, prev)
+            except Exception:
+                log.exception("%s: alert logic failed for game %s - sending a plain update", self.name, g.id)
+                evs = self.plain_events(g, prev)
+            for kind, texts in evs:
                 self.emit(kind, texts)
         for gid in set(self.gstate) - seen:
             del self.gstate[gid]

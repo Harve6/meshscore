@@ -16,6 +16,7 @@ The file has a few small sections; everything is optional except at least one ``
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
 
@@ -154,7 +155,8 @@ def _toml_value(v):
         return str(v)
     if isinstance(v, list):
         return "[" + ", ".join(_toml_value(x) for x in v) + "]"
-    return '"' + str(v).replace("\\", "\\\\").replace('"', '\\"') + '"'
+    # a TOML basic string uses the same escapes as JSON; DEL is the one extra control character TOML forbids
+    return json.dumps(str(v), ensure_ascii=False).replace(chr(127), chr(92) + "u007f")
 
 
 def render(radio: dict, bots: dict, timezone: str = "") -> str:

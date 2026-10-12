@@ -17,3 +17,7 @@ last_connection.json
 *.log
 *.log.*
 data/
+.coverage
+.coverage.*
+htmlcov/
+.hypothesis/

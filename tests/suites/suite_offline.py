@@ -496,7 +496,8 @@ async def main():
         m.CFG["announce_on_start"] = flag
         tt = Up(); hh = m.Hub(tt); hh.add(m.JaysModule(hh))
         task = asyncio.create_task(hh.transport_supervisor())
-        await asyncio.sleep(0.3); task.cancel()
+        await tl.until(lambda: hh.out.qsize() >= 1, timeout=1.0 if flag else 0.3)   # silent case: nothing may arrive
+        task.cancel()
         queued = hh.out.qsize()
         print(f"  announce_on_start={flag}: {queued} startup message(s) queued")
         assert queued == (1 if flag else 0)
@@ -619,7 +620,7 @@ async def main():
     evs = await o2.game_events(fin, {"ag": 2, "hg": 3, "code": 2, "inter": False, "period": 4}, [fin])
     finals = [e for e in evs if e.kind == "final"]
     assert len(finals) == 1 and len(finals[0].texts) == 1, evs           # final goes out without stars
-    await asyncio.sleep(0.5)
+    await tl.until(lambda: not o2.hub.out.empty())
     queued = []
     while not o2.hub.out.empty():
         queued.append(o2.hub.out.get_nowait()[:3])
@@ -641,7 +642,8 @@ async def main():
     fin2 = ls(state="final", period=3, ptype="REG", last_ptype="REG", **sc(2, 1))
     evs = await leafs.events(fin2, {"ar": fin2.ar, "hr": fin2.hr, "state": "live", "inter": False, "period": 3})
     assert [k for k, _ in evs] == ["final"] and len(evs[0][1]) == 1, evs
-    await asyncio.sleep(0.5); await settle(hub, 1.0)
+    await tl.until(lambda: any("A. Matthews" in x for _, x in t.sent))
+    await settle(hub, 1.0)
     print("  NHL follow-up:", [x for _, x in t.sent])
     assert any("A. Matthews" in x for _, x in t.sent), t.sent
     m.LATE_STARS_WAIT = 45
@@ -677,7 +679,7 @@ async def main():
     async def now_complete(gid):
         return {"GC": {"Gamesummary": {"mvps": star3, "totalShots": {"visitor": 1, "home": 1}, "goals": []}}}
     o3p.summary = now_complete                                # completes on the next poll
-    await asyncio.sleep(0.3)
+    await tl.until(lambda: not o3p.hub.out.empty())
     posted = []
     while not o3p.hub.out.empty():
         posted.append(o3p.hub.out.get_nowait()[:3])
@@ -691,7 +693,7 @@ async def main():
     ev = await o3c.game_events(fg3, {"ag": 2, "hg": 2, "code": 2, "inter": False, "period": 3}, [fg3])
     assert len(ev[0].texts) == 1, ev
     o3c.summary = now_complete
-    await asyncio.sleep(0.3)
+    await tl.until(lambda: not o3c.hub.out.empty())
     posted = []
     while not o3c.hub.out.empty():
         posted.append(o3c.hub.out.get_nowait()[:3])

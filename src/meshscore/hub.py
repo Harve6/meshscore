@@ -12,6 +12,10 @@ from .sameair import AirBudget, SameAir
 
 log = logging.getLogger("meshscore")
 
+TX_RETRY_WAIT = 2      # seconds before the one retry of a failed transmission
+ALERT_TTL = 900        # an alert still queued after this long (radio was down) is stale news - dropped (finals are kept)
+REPLY_TTL = 120        # likewise for an answer to a command nobody is waiting for any more
+
 
 @dataclass
 class Event:
@@ -49,10 +53,10 @@ class Hub:
     def say_chan(self, channel, texts, reply=False):
         """Queue channel posts. reply=True marks an answer to a command (deduped by exact text, never budget-capped)."""
         for t in [texts] if isinstance(texts, str) else texts:
-            self._enqueue(("chan", channel, fit(t), {"reply": reply}))
+            self._enqueue(("chan", channel, fit(t), {"reply": reply, "t": time.time()}))
 
     def say_dm(self, key, text):
-        self._enqueue(("dm", key, fit(text), {}))
+        self._enqueue(("dm", key, fit(text), {"t": time.time()}))
 
     def _enqueue(self, item):
         if self.out.qsize() >= 25:
@@ -72,6 +76,10 @@ class Hub:
             kind, dest, text, meta = await self.out.get()
             while not self.t.alive:
                 await asyncio.sleep(1)
+            age = time.time() - meta.get("t", time.time())
+            if age > (REPLY_TTL if meta.get("reply") or kind == "dm" else ALERT_TTL) and AirBudget.tier(text) != 0:
+                log.info("Dropping stale message (%ds old): %s", age, text)
+                continue
             if kind == "chan":
                 is_reply = bool(meta.get("reply"))
                 if not is_reply and not self.airtime.allow(text):
@@ -92,7 +100,7 @@ class Hub:
                     log.warning("TX error: %s", e)
                 if ok:
                     break
-                await asyncio.sleep(2)
+                await asyncio.sleep(TX_RETRY_WAIT)
             if ok and kind == "chan":
                 self.airtime.record()
             log.info("TX %s%s: %s", "OK " if ok else "FAIL ", f"[DM {dest[:6]}]" if kind == "dm" else f"[{dest}]", text)

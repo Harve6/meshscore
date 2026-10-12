@@ -149,7 +149,13 @@ def init_tz():
         log.warning("Timezone %r unavailable (pip install tzdata); using system time", CFG["timezone"])
 
 
+CLOCK = None      # tests: a callable returning the aware datetime to treat as "now" (None = the real clock)
+
+
 def now():
+    if CLOCK is not None:
+        base = CLOCK()
+        return base.astimezone(TZ) if TZ else base.astimezone()
     return datetime.now(TZ) if TZ else datetime.now().astimezone()
 
 
@@ -176,7 +182,7 @@ def pack(header, items, sep=" | ", max_msgs=None):
             cur.append(it)
             continue
         if cur:
-            msgs.append(f"{header} {sep.join(cur)}")
+            msgs.append(fit(f"{header} {sep.join(cur)}"))   # a lone over-long item is trimmed, never sent oversized
         cur = [it]
     if cur:
         msgs.append(fit(f"{header} {sep.join(cur)}"))

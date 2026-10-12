@@ -4,6 +4,7 @@ Keeps each suite's real content - the real API data and the scenarios replayed a
 instead of buried in setup boilerplate. Nothing here talks to a real radio or writes into the project folder."""
 import asyncio
 import os
+import re
 import sys
 import tempfile
 
@@ -57,9 +58,10 @@ class Facade:
         return self._sports_file()
 
 
-def bootstrap(extra_cfg=None):
+def bootstrap(extra_cfg=None, suite=None):
     """Fresh temp working directory (state/log files land there, never in the project folder), the package loaded
-    with a config suited to fast offline runs. Returns a Facade over the package."""
+    with a config suited to fast offline runs. Returns a Facade over the package.
+    The league APIs are served from tests/fixtures/<suite>.json.gz when it exists (see recorder.py)."""
     os.chdir(tempfile.mkdtemp())
     import importlib
     names = ["meshscore.core", "meshscore.config", "meshscore.sameair", "meshscore.radio", "meshscore.hub",
@@ -68,6 +70,12 @@ def bootstrap(extra_cfg=None):
     mods = [importlib.import_module(n) for n in names]
     m = Facade(mods)
     m.reset()
+    import recorder
+    name = suite or re.sub(r"^suite_|\.py$", "", os.path.basename(sys.argv[0]))
+    rec = recorder.Recorder(name, m.session, importlib.import_module("meshscore.core"))
+    object.__setattr__(m, "recorder", rec)
+    global FAST
+    FAST = rec.mode == "replay"
     m.CFG["modules"] = {k: dict(v) for k, v in LEGACY_BOTS.items()}
     m.CFG.update(send_gap=0, command_cooldown=0, log_file="", timezone="America/Toronto", announce_on_start=True,
                  dm_default="ohl", player_aliases={"pca": 691718, "vlad": 665489, "vladdy": 665489})
@@ -103,13 +111,34 @@ def make_fake(m, chans):
     return Fake
 
 
+FAST = False      # set by bootstrap(): True when the APIs are served from fixtures (no network latency to wait out)
+
+
 async def settle(hub, t=0.2):
-    """Wait for a hub's command queue and outbox to drain, then a little more for anything they trigger."""
-    for _ in range(40):
-        await asyncio.sleep(t / 10)
+    """Wait for a hub's command queue and outbox to drain, then for anything they trigger to go quiet.
+    Live APIs can take a second to answer, so the quiet period is `t`; with fixtures a short one is plenty."""
+    quiet = 0.08 if FAST else t
+    for _ in range(400):
+        await asyncio.sleep(0.01)
         if hub.cmdq.empty() and hub.out.empty():
             break
-    await asyncio.sleep(t)
+    await asyncio.sleep(quiet)
+    for _ in range(100):                       # something may have been queued by the reply we just waited for
+        if hub.cmdq.empty() and hub.out.empty():
+            break
+        await asyncio.sleep(0.02)
+
+
+async def until(cond, timeout=5.0, step=0.02):
+    """Wait (polling) until cond() is true, up to `timeout` seconds. Returns whether it became true.
+    Use instead of a fixed sleep: it is both faster and not at the mercy of a slow CI machine."""
+    loop = asyncio.get_running_loop()
+    end = loop.time() + timeout
+    while loop.time() < end:
+        if cond():
+            return True
+        await asyncio.sleep(step)
+    return bool(cond())
 
 
 def drain_raw(mod):
