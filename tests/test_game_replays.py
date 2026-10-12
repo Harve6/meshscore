@@ -46,6 +46,7 @@ def isolated(tmp_path, monkeypatch):
     CFG["modules"] = {
         "leafs": {"type": "nhl", "team": "TOR", "channel": "#leafs"},
         "jays": {"type": "mlb", "team": "TOR", "tag": "JAYS", "channel": "#jays"},
+        "ohl": {"type": "ohl", "channel": "#ohl"},
     }
     yield
     config.reset()
@@ -324,3 +325,136 @@ def test_mlb_restart_at_every_point_announces_nothing_old(pk):
         base = seq[0]
         assert len([t for t in got if t.startswith("⚾") and re.search(r"\bRUNS?!", t)]) == later_runs, (k, got)
         assert not any(t.startswith("⚾ Play ball") for t in got) or base.state == "preview", (k, got)
+
+
+# ============================================================ OHL (HockeyTech)
+from meshscore.leagues.hockeytech import OhlModule, parse_game  # noqa: E402
+
+OHL_IDS = sorted(GAMES.get("ohl", {}))
+
+
+def ohl_snapshots(entry, summary):
+    """(Game, revealed goal count) for every state a poller would see in this real OHL game."""
+    final = parse_game(entry)
+    gs = summary["GC"]["Gamesummary"]
+    goals = gs["goals"]
+    last_period = max([int(g["period_id"]) for g in goals] + [final.period if final.period_name != "SO" else 4, 3])
+    names = {1: "1st", 2: "2nd", 3: "3rd", 4: "OT"}
+    base = dataclasses.replace(final, code=1, ag=0, hg=0, period=0, period_name="", clock="20:00", intermission=False)
+    snaps = [(base, 0)]
+    ag = hg = shown = 0
+    for p in range(1, last_period + 1):
+        length = 1200 if p <= 3 else 300
+        snaps.append((dataclasses.replace(base, code=2, period=p, period_name=names[p], clock=f"{length // 60:02d}:00",
+                                          ag=ag, hg=hg), shown))
+        for g in [x for x in goals if int(x["period_id"]) == p]:
+            if g["home"] == "1":
+                hg += 1
+            else:
+                ag += 1
+            shown += 1
+            m, s = map(int, g["time"].split(":"))
+            left = max(length - (m * 60 + s), 0)
+            snaps.append((dataclasses.replace(base, code=2, period=p, period_name=names[p], clock=f"{left // 60:02d}:{left % 60:02d}",
+                                              ag=ag, hg=hg), shown))
+        if p in (1, 2):
+            snaps.append((dataclasses.replace(base, code=2, period=p, period_name=names[p], clock="00:00", ag=ag, hg=hg,
+                                              intermission=True), shown))
+    if final.period_name == "SO":
+        snaps.append((dataclasses.replace(base, code=2, period=4, period_name="SO", clock="00:00", ag=ag, hg=hg), shown))
+    snaps.append((final, shown))
+    return snaps
+
+
+async def ohl_replay(summary, snaps, priority=()):
+    mod = OhlModule(Hub(Transport()), "ohl")
+    mod.state.data["mode"] = "max"
+    mod.priority = list(priority)
+    gs = summary["GC"]["Gamesummary"]
+    cur = {"n": 0}
+
+    async def fake_summary(gid):
+        body = dict(gs)
+        body["goals"] = gs["goals"][: cur["n"]]
+        if cur["n"] < len(gs["goals"]) or not snaps[-1][0].final:
+            body["mvps"] = []
+        return {"GC": {"Gamesummary": body}}
+    mod.summary = fake_summary
+    got = []
+    for g, n in snaps:
+        cur["n"] = n
+        await mod.process_games([g])
+        got += [t for _, _, t, *_ in _drain_all(mod)]
+    return got
+
+
+def _drain_all(mod):
+    out = []
+    while not mod.hub.out.empty():
+        out.append(mod.hub.out.get_nowait())
+    return out
+
+
+def check_ohl(got, final, full_game, expect_total, start=(0, 0)):
+    finals = [i for i, t in enumerate(got) if "FINAL" in t]
+    assert len(finals) == 1, got
+    fin = got[finals[0]]
+    assert f"{final.away} {final.ag} @ {final.home} {final.hg}" in fin, fin
+    assert (("FINAL/" + ("SO" if final.period_name == "SO" else "OT")) in fin) == (final.period >= 4), fin
+    assert all(len(t.encode("utf-8")) <= MAX_BYTES for t in got)
+    assert all(t.startswith("⭐") for t in got[finals[0] + 1:]), got
+    last, claimed = start, 0
+    for t in got[: finals[0]]:
+        if not t.startswith("🚨"):
+            continue
+        sc = parse_score(t)
+        assert sc and sc[0] >= last[0] and sc[1] >= last[1] and sc != last, (t, last)
+        m = re.match(r"🚨 (\d+) goals", t)
+        n = int(m.group(1)) if m else 1
+        assert (sc[0] - last[0]) + (sc[1] - last[1]) == n, (t, last)
+        claimed += n
+        last = sc
+    assert claimed == expect_total, (claimed, expect_total, got)
+    if full_game:
+        assert got[0].startswith("🏒 Puck drop"), got[:2]
+
+
+def ohl_expected(snaps):
+    """Goals accounted for by the delivered snapshots; a shootout winner's +1 only appears in the final score."""
+    counted = [g for g, _ in snaps if g.period_name != "SO"] or [snaps[0][0]]
+    return counted[-1].ag + counted[-1].hg
+
+
+@pytest.mark.parametrize("stride,offset", STRIDES)
+@pytest.mark.parametrize("gid", OHL_IDS)
+def test_ohl_whole_game(gid, stride, offset):
+    g = GAMES["ohl"][gid]
+    snaps = choose(ohl_snapshots(g["entry"], g["summary"]), stride, offset)
+    final = parse_game(g["entry"])
+    got = asyncio.run(ohl_replay(g["summary"], repeats(snaps), priority=[final.home, final.away]))
+    check_ohl(got, final, full_game=True, expect_total=ohl_expected(snaps))
+    stars = [(m["first_name"], m["last_name"]) for m in g["summary"]["GC"]["Gamesummary"]["mvps"]]
+    if len(stars) == 3:                                   # a priority team's game: the three stars follow the final
+        assert got[-1].startswith("⭐") and all(ln in got[-1] for _, ln in stars), got[-2:]
+    if stride == 1:
+        singles = [t for t in got if t.startswith("🚨") and not re.match(r"🚨 \d+ goals", t)]
+        assert len(singles) == len(g["summary"]["GC"]["Gamesummary"]["goals"])
+        ints = [re.match(r"⏸ End of (\w+):", t).group(1) for t in got if t.startswith("⏸")]
+        assert ints == ["1st", "2nd"], ints
+
+
+@pytest.mark.parametrize("gid", OHL_IDS)
+def test_ohl_restart_at_every_point_announces_nothing_old(gid):
+    g = GAMES["ohl"][gid]
+    full = ohl_snapshots(g["entry"], g["summary"])
+    final = parse_game(g["entry"])
+    for k in range(len(full) - 1):
+        got = asyncio.run(ohl_replay(g["summary"], repeats(full[k:]), priority=[final.home, final.away]))
+        base = full[k][0]
+        check_ohl(got, final, full_game=False, expect_total=ohl_expected(full[k:]) - (base.ag + base.hg), start=(base.ag, base.hg))
+        # a restart inside an intermission must not announce the period that just ended (seen live, Oct 12)
+        if base.intermission:
+            ended = base.period_name
+            assert not any(t.startswith(f"⏸ End of {ended}") for t in got), (k, got)
+        # (HockeyTech flips a game to "live" before the puck drops - that pregame state still counts as not started)
+        assert not any(t.startswith("🏒 Puck drop") for t in got) or base.state_code == 1

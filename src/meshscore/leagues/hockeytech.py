@@ -761,7 +761,7 @@ class HockeyTechModule(PhaseMixin, ModeMixin):
 
         if d_a < 0 or d_h < 0:
             evs.append(Event("correction", teams, [f"⚠️ Score update: {score} | {clock}"]))
-        elif d_a > 0 or d_h > 0:
+        elif (d_a > 0 or d_h > 0) and g.period_name != "SO":     # the shootout winner's +1 is the final's news, not a goal
             n = d_a + d_h
             if n == 1:
                 scorer_team = g.away if d_a else g.home
