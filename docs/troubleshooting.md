@@ -3,6 +3,11 @@
 Start with `meshscore check` - it validates the config, probes every data source, connects to the radio and checks that
 each bot's channel exists on it.
 
+## "meshscore is not recognized" / "command not found"
+
+The install put the `meshscore` command in a folder that isn't on your PATH. Use `python -m meshscore <command>`
+instead (identical), or install into a virtual environment (`windows\install.bat` does this on Windows).
+
 ## "Could not connect" / access denied
 
 A companion radio serves **one client at a time**. Close the MeshCore phone/desktop app (and any other tool - meshcore-cli,

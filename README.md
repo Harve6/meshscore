@@ -42,6 +42,10 @@ meshscore check                  # validates the file, probes the data sources, 
 meshscore run
 ```
 
+> **"meshscore is not recognized"?** pip installed the command into a folder that isn't on your PATH (common on
+> Windows). `python -m meshscore init` (and `... check`, `... run`) does the same thing, or use `windows\install.bat`,
+> which sets up a virtual environment where the command always works.
+
 `meshscore init` asks how the radio is connected, reads the channels from it and offers the team codes for each league.
 The result is a small file you can edit by hand:
 
