@@ -1,0 +1,19 @@
+# /etc/systemd/system/meshscore.service
+# Edit User=, WorkingDirectory= and the paths, then:  sudo systemctl enable --now meshscore
+[Unit]
+Description=MeshScore - sports scores for MeshCore
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/meshscore
+ExecStart=/home/pi/meshscore-venv/bin/meshscore run --config /home/pi/meshscore/meshscore.toml
+Restart=always
+RestartSec=10
+# the radio's serial device (Debian / Raspberry Pi OS)
+SupplementaryGroups=dialout
+
+[Install]
+WantedBy=multi-user.target

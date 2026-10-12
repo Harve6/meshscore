@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# your own installation - never commit these
+meshscore.toml
+*_state.json
+meshscore_phases.json
+meshscore_same_air.json
+last_connection.json
+*.log
+*.log.*
+data/

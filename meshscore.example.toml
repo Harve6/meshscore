@@ -1,0 +1,60 @@
+# MeshScore example configuration. Copy to meshscore.toml (or run `meshscore init`).
+# Every setting is documented in docs/configuration.md. Lines starting with # are the defaults / examples.
+
+[radio]
+transport = "serial"           # serial (USB) | ble (Bluetooth) | tcp (WiFi)
+port = "COM3"                  # /dev/ttyUSB0 on Linux. `meshscore ports` lists what's connected
+# host = "192.168.1.50"        # tcp: the radio's IP
+# tcp_port = 5000
+# ble_address = ""             # ble: `meshscore scan-ble`
+# ble_pin = "123456"
+
+[bot]
+timezone = "America/Toronto"   # empty = this computer's zone
+# default_mode = "max"         # max = everything | min = period/inning results + final | off
+# announce_on_start = false    # true = post "active on #channel" at start
+# admin_names = []             # who may use !mode / !phase (empty = anyone; names can be spoofed)
+# admin_keys = []              # public-key prefixes allowed to do so by DM (authenticated)
+
+[same_air]                     # several MeshScore bots on one mesh (see docs/same-air.md)
+# enabled = true
+# rank = -1                    # place in the line-up: 0 posts first, 1 waits a slot ... (-1 = by node name)
+# peers = []                   # node names of your other bots
+
+[airtime]
+# max_per_hour = 0             # cap on alert messages per hour (0 = none); finals always go out
+
+# ---------------------------------------------------------------- bots (one table each)
+# NAME is also the command prefix ("!leafs score") and the state-file name.
+# The channel must already exist on the radio.
+
+[bots.leafs]
+type = "nhl"
+team = "TOR"                   # `meshscore teams nhl`
+label = "Toronto Maple Leafs"
+channel = "#leafs"
+
+# [bots.jays]
+# type = "mlb"
+# team = "TOR"                 # `meshscore teams mlb`
+# tag = "JAYS"                 # text in messages instead of the team code
+# channel = "#jays"
+
+# [bots.bills]
+# type = "nfl"
+# team = "BUF"                 # `meshscore teams nfl`
+# channel = "#bills"
+
+# [bots.ohl]                   # the OHL: one team, or leave `team` out for the whole league
+# type = "ohl"
+# team = "KIT"                 # `meshscore teams ohl`
+# priority_teams = ["KIT"]
+# channel = "#ohl"
+
+# [bots.mlb]                   # every MLB postseason game
+# type = "mlb-postseason"
+# channel = "#mlb"
+# skip_teams = ["TOR"]         # teams that have their own channel above
+
+# [plugins]
+# dirs = ["./my_plugins"]

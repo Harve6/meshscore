@@ -1,0 +1,14 @@
+services:
+  meshscore:
+    build: .
+    container_name: meshscore
+    restart: unless-stopped
+    volumes:
+      - ./data:/data                 # put meshscore.toml here; state and logs are written here too
+    # WiFi radio ([radio] transport = "tcp"): nothing else needed.
+    # USB radio on a Linux host: pass the serial device through and use the same path in meshscore.toml
+    # (port = "/dev/ttyUSB0"). Docker Desktop on Windows/macOS cannot pass USB serial devices - run natively there.
+    # devices:
+    #   - /dev/ttyUSB0:/dev/ttyUSB0
+    # group_add:
+    #   - dialout
