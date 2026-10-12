@@ -71,6 +71,9 @@ channel = "#jays"
 
 See [docs/configuration.md](docs/configuration.md) for every setting, and [`meshscore.example.toml`](meshscore.example.toml).
 
+Add, remove or switch off bots later with `meshscore bots add|remove|enable|disable` and open the file with
+`meshscore edit` - see [docs/managing-bots.md](docs/managing-bots.md).
+
 ### Docker, Windows, Raspberry Pi
 
 | | |

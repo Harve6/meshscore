@@ -161,3 +161,103 @@ def test_example_plugin_loads_and_answers_commands(tmp_path, monkeypatch):
 
 def test_built_in_types_are_all_registered():
     assert {"nhl", "mlb", "nfl", "ohl", "hockeytech", "postseason", "mlb-postseason"} <= set(registry())
+
+
+# ---------------------------------------------------------------- changing bots in an existing file
+from meshscore import cli  # noqa: E402
+
+COMMENTED = '''# my setup
+[radio]
+transport = "serial"
+port = "COM3"   # the left USB port
+
+[bots.leafs]       # the Leafs
+type = "nhl"
+team = "TOR"
+channel = "#leafs"
+
+# [bots.old]
+# type = "nfl"
+
+[bots.jays]
+type = "mlb"
+team = "TOR"
+tag = "JAYS"
+channel = "#jays"
+'''
+
+
+def test_block_finder_ignores_commented_tables():
+    assert list(config.bot_blocks(COMMENTED)) == ["leafs", "jays"]
+
+
+def test_add_keeps_everything_else_byte_for_byte():
+    new = config.add_bot_text(COMMENTED, "mlb", {"type": "mlb-postseason", "channel": "#jays"})
+    assert new.startswith(COMMENTED.rstrip("\n"))               # comments, spacing, the commented-out table: untouched
+    assert parse(new)["modules"]["mlb"] == {"enabled": True, "type": "mlb-postseason", "channel": "#jays"}
+    with pytest.raises(ConfigError, match="already"):
+        config.add_bot_text(new, "mlb", {"type": "nfl"})
+
+
+def test_remove_takes_only_that_table():
+    new = config.remove_bot_text(COMMENTED, "leafs")
+    assert list(config.bot_blocks(new)) == ["jays"] and "# [bots.old]" in new and "my setup" in new
+    assert "TOR" in new                                         # the jays table still has its team
+    with pytest.raises(ConfigError, match="No bot called"):
+        config.remove_bot_text(COMMENTED, "nope")
+
+
+def test_disable_and_enable_are_idempotent():
+    off = config.set_enabled_text(COMMENTED, "jays", False)
+    assert parse(off)["modules"]["jays"]["enabled"] is False and parse(off)["modules"]["leafs"]["enabled"] is True
+    assert config.set_enabled_text(off, "jays", False).count("enabled = false") == 1
+    on = config.set_enabled_text(off, "jays", True)
+    assert parse(on)["modules"]["jays"]["enabled"] is True and "enabled = false" not in on
+
+
+def test_save_edited_refuses_a_result_that_would_not_load(tmp_path):
+    p = tmp_path / "meshscore.toml"
+    p.write_text(COMMENTED, encoding="utf-8")
+    bad = config.add_bot_text(COMMENTED, "x", {"type": "nhl", "channel": "#x"})             # nhl needs a team
+    with pytest.raises(ConfigError, match="needs team"):
+        config.save_edited(str(p), bad)
+    assert p.read_text(encoding="utf-8") == COMMENTED                                       # untouched
+    good = config.add_bot_text(COMMENTED, "x", {"type": "nhl", "team": "BOS", "channel": "#x"})
+    config.save_edited(str(p), good)
+    assert (tmp_path / "meshscore.toml.bak").read_text(encoding="utf-8") == COMMENTED       # the previous file is kept
+    assert "[bots.x]" in p.read_text(encoding="utf-8")
+
+
+def args(**kw):
+    import argparse
+    d = dict(action="list", target=None, type=None, team=None, channel=None, name=None, tag=None, label=None, config=None)
+    d.update(kw)
+    return argparse.Namespace(**d)
+
+
+def test_bots_commands_end_to_end(tmp_path, capsys):
+    p = tmp_path / "meshscore.toml"
+    p.write_text(COMMENTED, encoding="utf-8")
+    c = str(p)
+    assert cli.cmd_bots(args(config=c)) == 0
+    assert "leafs" in capsys.readouterr().out
+    # the postseason bot on #jays, where a Jays team bot already is: its games are skipped there
+    assert cli.cmd_bots(args(action="add", type="mlb-postseason", channel="#jays", name="mlb", config=c)) == 0
+    out = capsys.readouterr().out
+    assert "skip_teams" in out and "Restart" in out
+    cfg = parse(p.read_text(encoding="utf-8"))["modules"]["mlb"]
+    assert cfg["skip_teams"] == ["TOR"] and cfg["channel"] == "#jays"
+    assert cli.cmd_bots(args(action="disable", target="mlb", config=c)) == 0
+    assert parse(p.read_text(encoding="utf-8"))["modules"]["mlb"]["enabled"] is False
+    assert cli.cmd_bots(args(action="remove", target="mlb", config=c)) == 0
+    assert "mlb" not in parse(p.read_text(encoding="utf-8"))["modules"]
+    assert cli.cmd_bots(args(action="remove", target="ghost", config=c)) == 2            # a clear refusal, file untouched
+    assert cli.cmd_bots(args(action="enable", config=c)) == 2                            # name missing
+
+
+def test_adding_a_team_bot_asks_for_team_and_channel(tmp_path, monkeypatch, capsys):
+    import meshscore.teams as teams
+    monkeypatch.setattr(teams, "team_list", lambda kind: [("NYY", "New York Yankees"), ("TOR", "Toronto Blue Jays")])
+    text = COMMENTED
+    name, fields = cli.add_bot_interactive(text, args(type="mlb"), ask=(lambda it: lambda prompt="": next(it))(iter(["nyy", "yankees"])), say=lambda *a: None)
+    assert name == "nyy" and fields == {"type": "mlb", "label": "New York Yankees", "team": "NYY", "channel": "#yankees"}

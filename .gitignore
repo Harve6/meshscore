@@ -21,3 +21,4 @@ data/
 .coverage.*
 htmlcov/
 .hypothesis/
+*.toml.bak

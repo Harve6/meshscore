@@ -269,6 +269,117 @@ async def _read_channels(radio):
         await t.stop()
 
 
+# ---------------------------------------------------------------- managing bots in an existing config
+def _need_config(args):
+    path = config.find_config(getattr(args, "config", None))
+    if not path:
+        print("No meshscore.toml found. Run `meshscore init` first (or pass --config FILE).")
+    return path
+
+
+def bots_table(text):
+    """Printable rows [(name, type, team, channel, state)] from the config text."""
+    mods = config.parse(text)["modules"]
+    return [(n, str(b.get("type", n)), str(b.get("team", "") or "-"), str(b.get("channel", "")),
+             "on" if b.get("enabled", True) else "OFF") for n, b in mods.items()]
+
+
+def add_bot_interactive(text, args, ask=input, say=print):
+    """Build the fields for a new bot from flags, asking for whatever is missing. Returns (name, fields)."""
+    mods = config.parse(text)["modules"]
+    kind = (args.type or "").lower()
+    if not kind:
+        say("\nWhich league?")
+        for i, (_, label) in enumerate(LEAGUE_CHOICES, 1):
+            say(f"  {i}) {label}")
+        while True:
+            ans = ask("> ").strip()
+            if ans.isdigit() and 1 <= int(ans) <= len(LEAGUE_CHOICES):
+                kind = LEAGUE_CHOICES[int(ans) - 1][0]
+                break
+    fields = {"type": kind}
+    name = args.name or ""
+    team = (args.team or "").upper()
+    if kind != "mlb-postseason" and not team:
+        team, long_name = _pick_team(kind, ask, say)
+        if long_name and not args.label:
+            fields["label"] = long_name
+    if team:
+        fields["team"] = team
+    if args.label:
+        fields["label"] = args.label
+    if args.tag:
+        fields["tag"] = args.tag
+    channel = args.channel or ask("  Channel for this bot (it must exist on the radio), e.g. #jays: ").strip()
+    fields["channel"] = "#" + channel.lstrip("#").lower()
+    if not name:
+        name = (team or kind.replace("-", "")).lower()
+        while name in mods:
+            name += "2"
+    # the postseason bot on a channel that already has a team bot: don't repeat that team's games
+    if kind == "mlb-postseason":
+        same = [b for b in mods.values() if str(b.get("type")) == "mlb" and b.get("team")
+                and str(b.get("channel", "")).lstrip("#").lower() == fields["channel"].lstrip("#")]
+        if same:
+            fields["skip_teams"] = [str(b["team"]).upper() for b in same]
+            say(f"  (this channel already has the {', '.join(fields['skip_teams'])} bot, so its games are skipped here: skip_teams)")
+    return name, fields
+
+
+def cmd_bots(args):
+    path = _need_config(args)
+    if not path:
+        return 2
+    with open(path, encoding="utf-8") as f:
+        text = f.read()
+    action = args.action or "list"
+    try:
+        if action == "list":
+            rows = bots_table(text)
+            if not rows:
+                print("No bots configured. Add one with: meshscore bots add")
+            for n, ty, tm, ch, st in rows:
+                print(f"  {n:<14} {ty:<15} {tm:<6} {ch:<12} {st}")
+            print(f"\n({path})")
+            return 0
+        if action == "add":
+            name, fields = add_bot_interactive(text, args)
+            new = config.add_bot_text(text, name, fields)
+            done = f"Added bot {name!r}: {fields}"
+        else:
+            if not args.target:
+                print(f"meshscore bots {action} NAME   (names: {', '.join(config.bot_blocks(text)) or 'none'})")
+                return 2
+            if action == "remove":
+                new = config.remove_bot_text(text, args.target)
+                done = f"Removed bot {args.target!r}."
+            else:
+                new = config.set_enabled_text(text, args.target, action == "enable")
+                done = f"Bot {args.target!r} {'enabled' if action == 'enable' else 'disabled'}."
+        config.save_edited(path, new)
+    except ConfigError as e:
+        print(f"Not changed: {e}")
+        return 2
+    print(done)
+    print(f"Saved {path} (previous version: {path}.bak). Restart MeshScore to apply; `meshscore check` tests the new setup.")
+    return 0
+
+
+def cmd_edit(args):
+    path = _need_config(args)
+    if not path:
+        return 2
+    import subprocess
+    if sys.platform == "win32":
+        subprocess.Popen(["notepad", path])
+    elif sys.platform == "darwin":
+        subprocess.Popen(["open", "-t", path])
+    else:
+        subprocess.Popen([os.environ.get("EDITOR", "xdg-open"), path])
+    print(f"Opened {path}. Save it, then restart MeshScore (`meshscore check` validates the file).")
+    return 0
+
+
 # ---------------------------------------------------------------- run
 def build_hub(transport):
     """Hub with every enabled bot from the settings added. Raises ConfigError for an unknown type."""
@@ -526,6 +637,22 @@ def build_parser():
     add_cfg(p)
     p.add_argument("--offline", action="store_true", help="skip the radio connection")
     p.set_defaults(fn=cmd_check)
+
+    p = sub.add_parser("bots", help="list / add / remove / enable / disable the bots in your config")
+    p.add_argument("action", nargs="?", choices=["list", "add", "remove", "enable", "disable"], default="list")
+    p.add_argument("target", nargs="?", help="bot name (remove / enable / disable)")
+    p.add_argument("--type", help="add: nhl | mlb | nfl | ohl | mlb-postseason")
+    p.add_argument("--team", help="add: team code")
+    p.add_argument("--channel", help='add: channel on the radio, e.g. "#jays"')
+    p.add_argument("--name", help="add: bot name (also its command prefix)")
+    p.add_argument("--tag", help="add: text in messages instead of the team code")
+    p.add_argument("--label", help="add: long name")
+    add_cfg(p)
+    p.set_defaults(fn=cmd_bots)
+
+    p = sub.add_parser("edit", help="open meshscore.toml in your text editor")
+    add_cfg(p)
+    p.set_defaults(fn=cmd_edit)
 
     sub.add_parser("ports", help="list USB serial ports").set_defaults(fn=cmd_ports)
     sub.add_parser("scan-ble", help="list nearby Bluetooth devices").set_defaults(fn=cmd_scan_ble)

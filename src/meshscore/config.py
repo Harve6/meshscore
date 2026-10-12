@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 
 from .core import CFG, DEFAULTS
@@ -181,3 +182,73 @@ def render(radio: dict, bots: dict, timezone: str = "") -> str:
         for k, v in b.items():
             lines.append(f"{k} = {_toml_value(v)}")
     return "\n".join(lines) + "\n"
+
+
+# ---------------------------------------------------------------- editing an existing file (keeps your comments)
+_BOT_HEADER = re.compile(r"^\s*\[bots\.([A-Za-z0-9_\-]+)\]\s*(?:#.*)?$")
+_ANY_HEADER = re.compile(r"^\s*\[")
+
+
+def bot_blocks(text):
+    """{name: (first_line, last_line_exclusive)} of every [bots.NAME] table in the text (commented-out ones don't count)."""
+    lines = text.split("\n")
+    heads = [(i, m.group(1).lower()) for i, ln in enumerate(lines) if (m := _BOT_HEADER.match(ln))]
+    out = {}
+    for i, name in heads:
+        j = next((k for k in range(i + 1, len(lines)) if _ANY_HEADER.match(lines[k])), len(lines))
+        while j - 1 > i and (not lines[j - 1].strip() or lines[j - 1].lstrip().startswith("#")):
+            j -= 1                    # comments / blank lines after the last setting belong to what follows, not to this bot
+        out[name] = (i, j)
+    return out
+
+
+def add_bot_text(text, name, fields):
+    """The file text with a new [bots.NAME] table appended. Raises ConfigError if the name is already used."""
+    if name.lower() in bot_blocks(text):
+        raise ConfigError(f"There is already a bot called {name!r}.")
+    block = [f"[bots.{name}]"] + [f"{k} = {_toml_value(v)}" for k, v in fields.items()]
+    return text.rstrip("\n") + "\n\n" + "\n".join(block) + "\n"
+
+
+def remove_bot_text(text, name):
+    """The text without the [bots.NAME] table (its comments inside the table go with it)."""
+    blocks = bot_blocks(text)
+    if name.lower() not in blocks:
+        raise ConfigError(f"No bot called {name!r}. Bots: {', '.join(blocks) or '(none)'}")
+    a, b = blocks[name.lower()]
+    lines = text.split("\n")
+    kept = lines[:a] + lines[b:]
+    out = "\n".join(kept)
+    return re.sub(r"\n{3,}", "\n\n", out).rstrip("\n") + "\n"
+
+
+def set_enabled_text(text, name, enabled):
+    """Turn a bot on/off by adding or updating `enabled = ...` inside its table."""
+    blocks = bot_blocks(text)
+    if name.lower() not in blocks:
+        raise ConfigError(f"No bot called {name!r}. Bots: {', '.join(blocks) or '(none)'}")
+    a, b = blocks[name.lower()]
+    lines = text.split("\n")
+    val = "true" if enabled else "false"
+    for k in range(a + 1, b):
+        if re.match(r"^\s*enabled\s*=", lines[k]):
+            lines[k] = f"enabled = {val}"
+            break
+    else:
+        lines.insert(a + 1, f"enabled = {val}")
+    return "\n".join(lines)
+
+
+def save_edited(path, new_text):
+    """Validate `new_text`, keep the previous file as <path>.bak, then write it. Raises ConfigError (file untouched)
+    if the result would not load or has problems."""
+    user = parse(new_text)                                   # raises ConfigError for broken TOML / unknown settings
+    merged = {**DEFAULTS, **{k: v for k, v in user.items()}}
+    bad = problems(merged)
+    if bad:
+        raise ConfigError("\n".join("  - " + b for b in bad))
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f, open(path + ".bak", "w", encoding="utf-8", newline="\n") as g:
+            g.write(f.read())
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(new_text)

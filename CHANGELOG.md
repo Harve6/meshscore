@@ -10,6 +10,8 @@ through a season. This release turns it into a package anyone can run.
 * **Same-air coordination**: listen-before-send dedupe and an automatic line-up between bots, no extra airtime.
 * **Airtime budget**: optional `max_per_hour` with priorities (finals first).
 * **Plugin API** (`LeaguePlugin`, entry points, plugin directories).
+* **Manage bots after install**: `meshscore bots` (list / add / remove / enable / disable, comment-preserving, with a
+  `.bak` of the previous file) and `meshscore edit`.
 * **Playoff coverage**: `!series` / `!bracket` for NHL, MLB and NFL.
 * NFL touchdowns wait for their conversion so TD + PAT / 2-pt is one message.
 * Hardened feeds: tied-final guard with "(corrected)" safety net, stale-update ignoring, goal-lag second source,
