@@ -42,6 +42,7 @@ DEFAULTS = {
     "announce_on_start": False,       # post "... active on #channel" when the bot starts (false = silent restarts)
     "instance_port": 47653,           # local port used to detect a second copy on THIS computer (0 = no check)
     "respond_to_dms": True,
+    "log_chat": False,                # log EVERY channel message the radio hears (HEARD ...), not just the bot's own traffic
     "timezone": "",                   # IANA name like "America/Toronto"; empty = this computer's zone
     "poll_live_seconds": 20,          # while games are live / about to start
     "poll_idle_seconds": 300,         # when nothing is happening

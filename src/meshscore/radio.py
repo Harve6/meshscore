@@ -52,6 +52,7 @@ class LibTransport(Transport):
     def __init__(self):
         self.mc = None
         self.radio_names = None  # {slot: channel name} read by open(), used once by start()
+        self.all_names = {}      # {slot: channel name} of every channel on the radio (for log_chat)
         self.chans = {}          # chan_key -> radio channel index
         self.idx_name = {}       # radio channel index -> chan_key
         self.on_message = None
@@ -108,6 +109,7 @@ class LibTransport(Transport):
             mc.subscribe(EventType.DISCONNECTED, self._on_disc)
         await mc.start_auto_message_fetching()
         self.alive = True
+        self._log_contacts()
         log.info("Connected. Channels: %s", ", ".join(f"#{k}=slot {i}" for k, i in self.chans.items()))
 
     async def stop(self):
@@ -162,6 +164,20 @@ class LibTransport(Transport):
             raise RuntimeError("None of the configured channels exist on the radio")
         self.chans = found
         self.idx_name = {i: k for k, i in found.items()}
+        self.all_names = dict(names)
+
+    def _log_contacts(self):
+        """One line saying what the radio can see of the mesh: how many nodes it knows and how recently it heard one."""
+        try:
+            import time
+            cs = list((getattr(self.mc, "contacts", None) or {}).values())
+            kinds = {}
+            for c in cs:
+                k = {1: "companions", 2: "repeaters", 3: "rooms", 4: "sensors"}.get(c.get("type"), "other")
+                kinds[k] = kinds.get(k, 0) + 1
+            log.info("Radio knows %d nodes (%s)", len(cs), ", ".join(f"{n} {k}" for k, n in sorted(kinds.items())) or "none")
+        except Exception as e:                       # purely informational
+            log.debug("contact summary failed: %s", e)
 
     async def _on_disc(self, event):
         log.warning("Radio disconnected")
@@ -171,6 +187,11 @@ class LibTransport(Transport):
         try:
             p = event.payload or {}
             chan = self.idx_name.get(p.get("channel_idx"))
+            if CFG.get("log_chat"):                    # everything the radio hears, even channels no bot is on
+                where = self.all_names.get(p.get("channel_idx"), f"slot {p.get('channel_idx')}")
+                hops = p.get("path_len")
+                log.info("HEARD [%s] %s  (%s hops, SNR %s)", where, str(p.get("text", ""))[:110],
+                         hops if isinstance(hops, int) and hops < 64 else "?", p.get("SNR"))
             if chan is None:
                 return
             raw = str(p.get("text", ""))

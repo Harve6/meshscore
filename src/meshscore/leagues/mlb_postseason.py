@@ -121,6 +121,7 @@ class PostseasonModule(MlbBase, ModeMixin):
         self.series, self.series_at = [], 0.0
         self.gstate, self.pending = {}, {}
         self.done, self.started, self.headsup, self.walkoff, self.nohit = set(), set(), set(), set(), {}
+        self.headsup = {int(x) for x in self.state.data.get("headsup") or [] if str(x).lstrip("-").isdigit()}   # survive restarts
         self.busy, self.busy_announced = False, ""
         self.thirds = {}
         self._warned = False
@@ -612,6 +613,8 @@ class PostseasonModule(MlbBase, ModeMixin):
             mins = (g.start - now()).total_seconds() / 60
             if 0 < mins <= self.headsup_min:
                 self.headsup.add(g.pk)
+                self.state.data["headsup"] = sorted(self.headsup)[-60:]      # a restart must not repeat it
+                self.state.save()
                 pre = await self.series_pre(g)
                 sp = f" | {g.away_sp} v {g.home_sp}" if g.away_sp and g.home_sp else ""
                 self.emit("heads", [fit(f"🏟 {game_tag(g)} G{g.sgame} in {int(mins)}m: {g.away} @ {g.home}{' | ' + pre if pre else ''}{sp}")], g)

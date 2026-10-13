@@ -31,7 +31,7 @@ except ModuleNotFoundError:  # Python 3.10
 CONFIG_NAME = "meshscore.toml"
 
 RADIO_KEYS = {"transport", "port", "baud", "host", "tcp_port", "ble_address", "ble_name", "ble_pin"}
-BOT_KEYS = {"timezone", "default_mode", "announce_on_start", "dm_default", "respond_to_dms", "admin_names", "admin_keys", "poll_live_seconds",
+BOT_KEYS = {"timezone", "default_mode", "announce_on_start", "dm_default", "respond_to_dms", "log_chat", "admin_names", "admin_keys", "poll_live_seconds",
             "poll_idle_seconds", "busy_live_games", "command_cooldown", "send_gap", "max_msg_bytes", "max_reply_msgs",
             "max_follows", "dm_even_if_broadcast", "instance_port", "log_file", "full_days_back", "full_days_ahead",
             "player_aliases", "phases"}
