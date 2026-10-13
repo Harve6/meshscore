@@ -430,7 +430,8 @@ class HockeyTechModule(PhaseMixin, ModeMixin):
         self.priority = [str(c).upper() for c in (saved if isinstance(saved, list) else cfg.get("priority_teams") or ([self.team] if self.team else []))]
         self.busy, self.busy_announced = False, ""
         self.commands = {
-            "!scores": self.cmd_scores, "!schedule": self.cmd_scores, "!tomorrow": self.cmd_tomorrow,
+            "!scores": self.cmd_scores, "!score": self.cmd_scores, "!today": self.cmd_scores, "!schedule": self.cmd_scores,
+            "!tomorrow": self.cmd_tomorrow,
             "!cup": self.cmd_cup, "!memorialcup": self.cmd_cup, "!priority": self.cmd_priority,
             "!team": self.cmd_team, "!next": self.cmd_next, "!standings": self.cmd_standings,
             "!follow": self.cmd_follow, "!unfollow": self.cmd_unfollow, "!following": self.cmd_following,

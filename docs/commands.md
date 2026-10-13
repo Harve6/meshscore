@@ -43,7 +43,7 @@ team's series first; `!playoffs` / `!bracket` are the same)
 
 ## OHL / HockeyTech (`type = "ohl"`)
 
-`!scores` · `!tomorrow` · `!team CODE` · `!next CODE` · `!standings [east|central|midwest|west|eastern|western]` ·
+`!scores` (also `!score`, `!today`) · `!tomorrow` · `!team CODE` · `!next CODE` · `!standings [east|central|midwest|west|eastern|western]` ·
 `!cup` (Memorial Cup) · `!priority CODE...` · `!follow CODE` / `!unfollow` / `!following` (DM alerts for a team)
 
 ## Alerts (what the channel gets)
