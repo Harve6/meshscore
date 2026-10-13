@@ -118,6 +118,8 @@ class Hub:
             cmd, rest = ("!" + rest[0].lower(), rest[1:]) if rest else (getattr(mod, "bare_command", "!help"), [])
         elif inc.is_dm:
             mod = self.modules.get(CFG["dm_default"]) or next(iter(self.modules.values()), None)
+            if mod is not None and cmd not in mod.commands:        # a plain "!up" DM: whichever bot has that command
+                mod = next((m for m in self.modules.values() if cmd in m.commands), mod)
         else:
             mods = self.by_channel.get(chan_key(inc.channel), [])
             # bots sharing a channel: first one that has the command; a bot that lists it in `defer_cmds` steps aside

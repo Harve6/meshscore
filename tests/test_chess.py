@@ -254,6 +254,9 @@ class Radio(Transport):
     async def channel_uri(self, channel):
         return getattr(self, "curi", "")
 
+    async def own_contact_link(self):
+        return getattr(self, "link", "")
+
     def find_contact(self, name=None, key=None):
         for n, k in self.contacts.items():
             if (name and n.lower() == name.lower()) or (key and k.startswith(key[:12])):

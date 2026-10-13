@@ -66,6 +66,11 @@ class CardsMixin:
             log.debug("contact card unavailable: %s", e)
             return
         try:
+            link = await self.hub.t.own_contact_link()
+        except Exception as e:
+            log.debug("contact link unavailable: %s", e)
+            link = ""
+        try:
             curi = await self.hub.t.channel_uri(self.channel)
         except Exception as e:
             log.debug("channel link unavailable: %s", e)
@@ -73,7 +78,11 @@ class CardsMixin:
         if curi.startswith("meshcore://"):
             self.state.data["channel_card"] = {"name": self.channel, "uri": curi}
         if uri and uri.startswith("meshcore://"):
-            self.state.data["contact"] = {"name": getattr(self.hub.t, "own_name", "") or "", "uri": uri}
+            card = {"name": getattr(self.hub.t, "own_name", "") or "", "uri": uri}
+            if link.startswith("meshcore://contact/add"):
+                card["link"] = link
+                card["public_key"] = link.split("public_key=", 1)[1].split("&", 1)[0]
+            self.state.data["contact"] = card
         if uri and curi:
             self._contact_ok = True
         self.state.save()
@@ -87,5 +96,5 @@ class CardsMixin:
             chan["svg"] = qr_svg(chan.get("uri", ""))
         contact = d.get("contact") if show else None
         if contact:
-            contact = {**contact, "svg": qr_svg(contact.get("uri", ""))}
+            contact = {**contact, "svg": qr_svg(contact.get("link") or contact.get("uri", ""))}
         return {"contact": contact, "channel": chan}

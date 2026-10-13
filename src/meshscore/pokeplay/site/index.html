@@ -66,7 +66,7 @@ footer { color: var(--muted); font-size: .85rem; margin: 18px 0 8px; }
         </div>
         <div class="pad"><span>!up</span><span>!down</span><span>!left</span><span>!right</span>
           <span>!a</span><span>!b</span><span>!start</span><span>!select</span></div>
-        <div class="how">Send one on the channel. Add a number to walk further: <code>!up 5</code>. Most votes when the clock runs
+        <div class="how" id="how">Send one on the channel. Add a number to walk further: <code>!up 5</code>. Most votes when the clock runs
           out is pressed. <code>!where</code> and <code>!party</code> answer on the radio.</div>
       </div>
       <div class="card" id="chancard" hidden>
@@ -85,8 +85,10 @@ footer { color: var(--muted); font-size: .85rem; margin: 18px 0 8px; }
         <div class="contact">
           <div id="qr" class="qr"></div>
           <div>
-            <p style="margin:0 0 6px">Scan this so the bot's replies reach you by DM. Votes work without it.</p>
-            <a id="curi" class="muted uri" href="#"></a>
+            <p style="margin:0 0 6px" id="ctnote">Scan this so the bot's replies reach you by DM. Votes work without it.</p>
+            <p class="muted" style="margin:0" id="ctname"></p>
+            <p class="muted uri" style="margin:4px 0" id="ctkey"></p>
+            <a id="curi" class="muted uri" href="#">open in the app</a>
           </div>
         </div>
       </div>
@@ -139,7 +141,9 @@ function cards() {
   } else cc.hidden = true;
   const c = state.contact, ct = $("contactcard");
   if (c && c.uri) {
-    ct.hidden = false; const a = $("curi"); a.href = c.uri; a.textContent = c.uri.slice(0, 66) + "...";
+    ct.hidden = false; const a = $("curi"); a.href = c.uri; a.textContent = "or tap here to open it in the app";
+    $("ctname").textContent = c.name ? "Name: " + c.name : "";
+    $("ctkey").textContent = c.public_key ? "Public key: " + c.public_key : "";
     if (ctFor !== c.uri + (c.svg ? 1 : 0)) { ctFor = c.uri + (c.svg ? 1 : 0); showQR($("qr"), c); }
   } else ct.hidden = true;
 }
@@ -180,7 +184,11 @@ function render() {
   if (!s.events.length) { const li = document.createElement("li"); li.className = "muted"; li.textContent = "Nothing yet"; ev.appendChild(li); }
   for (const e of s.events) { const li = document.createElement("li"); li.textContent = e.text; ev.appendChild(li); }
   const r = $("recent");
-  r.textContent = s.recent.length ? s.recent.map(x => "#" + x.n + " " + x.action + " (" + x.votes + "/" + x.voters + ")").join("  ·  ") : "None yet";
+  r.textContent = s.recent.length ? s.recent.map(x => "#" + x.n + " " + x.action + " - " + ((x.who && x.who.length) ? x.who.join(", ") : x.votes + "/" + x.voters)).join("   ·   ") : "None yet";
+  if (s.dm_only) {
+    $("how").textContent = "Commands are by DM. Add the bot as a contact (QR below), then message it: !up, !a, !start ... Add a number to walk further: !up 5. !log shows who pressed what.";
+    $("ctnote").textContent = "Scan this first: the bot only listens to direct messages, and its replies reach you here.";
+  }
   const pt = $("players"); pt.textContent = "";
   if (!s.players.length) { pt.insertRow().insertCell().textContent = "Nobody yet"; }
   for (const q of s.players) { const tr = pt.insertRow(); tr.insertCell().textContent = q.name; tr.insertCell().textContent = q.presses + " presses"; }

@@ -50,7 +50,7 @@ class GameBoy:
                 self.pb.tick(boot_frames, False)
         else:
             self.pb.tick(boot_frames, False)
-        self.pb.tick(1, True)
+        self._unblank()
 
     def press(self, button: str, steps: int = 1):
         if button in DIRECTIONS:
@@ -59,7 +59,20 @@ class GameBoy:
             hold = TAP_FRAMES
         self.pb.button(button, hold)
         self.pb.tick(hold + SETTLE_FRAMES, False)
+        self._unblank()
+
+    def _unblank(self, tries: int = 12):
+        """A screen that is one flat colour is a fade between scenes: let the game run (no input) until it is not."""
         self.pb.tick(1, True)
+        for _ in range(tries):
+            try:
+                a = self.pb.screen.ndarray
+                if not (a == a[0, 0]).all():
+                    return
+            except Exception:
+                return
+            self.pb.tick(30, False)
+            self.pb.tick(1, True)
 
     def read(self, addr: int) -> int:
         return int(self.pb.memory[addr])

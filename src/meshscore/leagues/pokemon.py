@@ -53,6 +53,10 @@ class PokemonModule(CardsMixin, LeaguePlugin):
         self.ack = str(c.get("ack", "dm")).lower()
         self.site_url = str(c.get("site_url", "") or "").strip()
         self.vote_hour = int(c.get("vote_hour", 9))
+        self.dm_only = bool(c.get("dm_only", False))          # commands only by DM; the channel just hears events
+        il = c.get("input_log")                                # a file name; false / "off" = no log file
+        self.input_log = f"{name}-inputs.log" if il is None else "" if il is False or str(il).lower() in ("off", "false", "none", "") else str(il)
+        self._hint_at = 0.0
         self.ballot_seconds = max(60.0, float(c.get("ballot_minutes", 60)) * 60)
         if str(c.get("site_api", "") or "").strip():              # a Cloudflare Worker (contrib/cloudflare-board)
             self.pub = HttpPublisher(str(c["site_api"]), str(c.get("site_token", "") or ""),
@@ -189,6 +193,30 @@ class PokemonModule(CardsMixin, LeaguePlugin):
         elif self.ack == "chan" or (important and self.ack != "off"):
             self.hub.say_chan(self.channel, text, reply=True)
 
+    def _log(self, text):
+        """One line in the input log file (who pressed what, and what each round did)."""
+        if not self.input_log:
+            return
+        try:
+            with open(self.input_log, "a", encoding="utf-8") as f:
+                f.write(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.clock())) + " " + text + "\n")
+        except OSError:
+            pass
+
+    def _gated(self, fn):
+        """With dm_only, a command sent on the channel is ignored (one gentle hint per 10 minutes)."""
+        async def cmd(inc, arg):
+            if self.dm_only and not inc.is_dm:
+                now = self.clock()
+                if now - self._hint_at > 600:
+                    self._hint_at = now
+                    where = f" {self.site_url}" if self.site_url else ""
+                    self.hub.say_chan(self.channel, fit(f"[{self.tag}] Play by DM: add the bot as a contact, then DM "
+                                                       f"!up !a !start ...{where}"), reply=True)
+                return []
+            return await fn(inc, arg)
+        return cmd
+
     def _event(self, text):
         ev = self.state.data["events"]
         ev.insert(0, {"t": int(self.clock()), "text": text})
@@ -234,7 +262,11 @@ class PokemonModule(CardsMixin, LeaguePlugin):
         self.status, self.png = status, png
         d["last_status"] = status.to_dict()
         d["rounds"] += 1
-        d["recent"].insert(0, {"n": d["rounds"], "action": pg.label((button, steps)), "votes": n, "voters": len(voters)})
+        who = [w for w, (b, s, _) in voters.items() if (b, s) == (button, steps)]
+        d["recent"].insert(0, {"n": d["rounds"], "action": pg.label((button, steps)), "votes": n, "voters": len(voters),
+                               "who": who[:6]})
+        self._log(f"round #{d['rounds']} {pg.label((button, steps))} ({n}/{len(voters)}) by {', '.join(who) or '-'}"
+                  f" -> {status.map_name}" + (f" | {'; '.join(t for _, t in events)}" if events else ""))
         del d["recent"][RECENT:]
         for who, (b, s, _) in voters.items():
             p = self._player(who)
@@ -332,11 +364,12 @@ class PokemonModule(CardsMixin, LeaguePlugin):
                 "!game": self.cmd_game, "!switch": self.cmd_switch}
         for word in list(BUTTONS) + ["u", "d", "l", "r", "sel"]:
             cmds["!" + word] = self._button_cmd(word)
-        return cmds
+        cmds["!log"] = self.cmd_log
+        return {k: self._gated(v) for k, v in cmds.items()}
 
     def help_text(self):
         extra = " | !game <name>" if self.multi else ""
-        return "!up !down !left !right !a !b !start !select (+ a number: !up 5) | !where !party !votes !top" + extra
+        return "!up !down !left !right !a !b !start !select (+ a number: !up 5) | !where !party !votes !log !top" + extra
 
     def status_extra(self):
         return f" | rounds {self.state.data.get('rounds', 0)}" + (f" | DOWN: {self.problem}" if not self.gb else "")
@@ -369,6 +402,7 @@ class PokemonModule(CardsMixin, LeaguePlugin):
                 nvotes = n
                 break
         left = max(0, int(rs["window_end"] - self.clock()))
+        self._log(f"vote  {self._voter(inc)} {pg.label(a)}")
         self._feedback(inc, f"✓ {pg.label(a)}: {nvotes} of {len(rs['votes'])} votes | {left}s left")
         return []
 
@@ -429,6 +463,14 @@ class PokemonModule(CardsMixin, LeaguePlugin):
         left = max(0, int((rs.get("window_end") or self.clock()) - self.clock()))
         votes = ", ".join(f"{pg.label(k)} {n}" for k, n in t[:5])
         return [fit(f"[{self.tag}] votes: {votes} | {left}s left")]
+
+    async def cmd_log(self, inc, arg):
+        """The last few rounds: what was pressed and by whom."""
+        rec = self.state.data["recent"][:6]
+        if not rec:
+            return [f"[{self.tag}] Nothing pressed yet"]
+        items = [f"#{r['n']} {r['action']} ({','.join(r.get('who') or ['?'])})" for r in rec]
+        return pack(f"[{self.tag}]", items)
 
     async def cmd_top(self, inc, arg):
         pl = self.state.data["players"]
@@ -497,6 +539,7 @@ class PokemonModule(CardsMixin, LeaguePlugin):
             "events": d["events"],
             "players": [{"name": n, **p} for n, p in top],
             "default_steps": self.steps,
+            "dm_only": self.dm_only,
             "game": {"active": self.active, "title": self.game_title(),
                      "options": [{"key": k, "title": self.game_title(k)} for k in self.roms] if self.multi else [],
                      "vote_hour": self.vote_hour},

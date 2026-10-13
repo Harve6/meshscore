@@ -38,6 +38,7 @@ class Transport:
     def find_contact(self, name=None, key=None): return None
     async def status_extra(self): return ""
     async def own_contact_uri(self): return ""      # this radio's shareable contact card (meshcore://...), "" if unknown
+    async def own_contact_link(self): return ""     # meshcore://contact/add?name=..&public_key=..&type=.. (what the QR scanner reads)
     async def channel_uri(self, channel): return ""  # a channel's shareable join link (meshcore://channel/add?...), "" if unknown
 
 
@@ -234,6 +235,15 @@ class LibTransport(Transport):
         except Exception as e:
             log.debug("Could not export the radio's contact card: %s", e)
             return ""
+
+    async def own_contact_link(self):
+        """The radio's contact as the app's QR scanner reads it (docs.meshcore.io/qr_codes)."""
+        from urllib.parse import quote
+        info = getattr(self.mc, "self_info", None) or {}
+        key, name = str(info.get("public_key", "") or ""), str(info.get("name", "") or "")
+        if len(key) != 64 or not name:
+            return ""
+        return f"meshcore://contact/add?name={quote(name)}&public_key={key}&type={int(info.get('adv_type') or 1)}"
 
     async def channel_uri(self, channel):
         """The join link for a channel on this radio, as the MeshCore app's channel QR carries it."""
