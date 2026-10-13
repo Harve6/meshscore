@@ -52,6 +52,11 @@ code { background: var(--bar); padding: 0 5px; border-radius: 4px; font-size: .9
 table { width: 100%; border-collapse: collapse; font-size: .92rem; }
 td { padding: 3px 4px; border-bottom: 1px solid var(--line); } td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
 .stack > * + * { margin-top: 14px; }
+.contact { display: grid; grid-template-columns: 148px 1fr; gap: 12px; align-items: start; }
+.qr { background: #fff; padding: 8px; border-radius: 6px; width: 148px; height: 148px; }
+.qr img, .qr canvas { display: block; width: 132px !important; height: 132px !important; }
+#curi { word-break: break-all; font-size: .72rem; }
+@media (max-width: 420px) { .contact { grid-template-columns: minmax(0, 1fr); } }
 .warn { background: #e5484d22; border: 1px solid #e5484d66; color: var(--ink); padding: 8px 10px; border-radius: 8px; margin-bottom: 12px; display: none; }
 .puz { display: grid; grid-template-columns: minmax(0, 260px) 1fr; gap: 14px; align-items: start; }
 @media (max-width: 560px) { .puz { grid-template-columns: minmax(0, 1fr); } }
@@ -92,12 +97,24 @@ footer { color: var(--muted); font-size: .85rem; margin: 18px 0 8px; }
       <div class="card"><h2>Moves</h2><div class="moves" id="moves"></div></div>
       <div class="card"><h2>Difficulty</h2><div class="ladder" id="ladder"></div>
         <p class="muted" id="record" style="margin:10px 0 0"></p></div>
+      <div class="card" id="contactcard" hidden>
+        <h2>Add the bot as a contact</h2>
+        <div class="contact">
+          <div id="qr" class="qr"></div>
+          <div>
+            <p style="margin:0 0 6px">Scan this in the MeshCore app (Contacts &rarr; add / scan) so the bot's replies reach you by DM.
+            Votes work without it.</p>
+            <a id="curi" class="muted" href="#"></a>
+          </div>
+        </div>
+      </div>
       <div class="card"><h2>Top contributors</h2><table id="players"></table></div>
       <div class="card"><h2>Last games</h2><div id="history" class="muted">None yet</div></div>
     </div>
   </div>
   <footer>Updated <span id="updated">-</span>. A MeshScore bot; the board refreshes about every minute.</footer>
 </main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 "use strict";
 const GLYPH = {k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟"};
@@ -217,7 +234,21 @@ function render() {
     $("puzhead").textContent = (p.side === "white" ? "White" : "Black") + " to move - rating " + p.rating;
     $("puzsolved").textContent = p.solved.length ? "Solved by: " + p.solved.join(", ") : "Nobody has solved it yet.";
   } else pc.hidden = true;
+  renderContact();
   tick();
+}
+let qrFor = "";
+function renderContact() {
+  const c = state.contact, card = $("contactcard");
+  if (!c || !c.uri) { card.hidden = true; return; }
+  card.hidden = false;
+  const a = $("curi"); a.href = c.uri; a.textContent = c.uri.length > 70 ? c.uri.slice(0, 66) + "..." : c.uri;
+  if (qrFor !== c.uri && window.QRCode) {
+    qrFor = c.uri;
+    const q = $("qr"); q.textContent = "";
+    try { new QRCode(q, {text: c.uri, width: 132, height: 132, colorDark: "#000000", colorLight: "#ffffff",
+                          correctLevel: QRCode.CorrectLevel.L}); } catch (e) { q.textContent = ""; }
+  }
 }
 function tick() {
   if (!state) return;

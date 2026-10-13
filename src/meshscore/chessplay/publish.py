@@ -24,9 +24,11 @@ def _run(args, cwd, timeout=90):
 
 
 class SitePublisher:
-    def __init__(self, site_dir: str = "", min_interval: float = 60.0, push: bool = True, clock=time.time, run=_run):
+    def __init__(self, site_dir: str = "", min_interval: float = 60.0, push: bool = True, clock=time.time, run=_run,
+                 sync_page: bool = True):
         self.site_dir = os.path.abspath(site_dir) if site_dir else ""
         self.min_interval, self.push, self.clock, self.run = float(min_interval), push, clock, run
+        self.sync_page = sync_page            # keep index.html in step with the version that ships with MeshScore
         self.last_push = 0.0
         self.dirty = False
         self.last_text = ""
@@ -59,15 +61,22 @@ class SitePublisher:
 
     def _write(self, state: dict):
         os.makedirs(self.site_dir, exist_ok=True)
-        for name in ("index.html", ".nojekyll"):                 # first run: drop the page itself in
+        for name in ("index.html", ".nojekyll"):                 # the page itself: dropped in, and kept current
             dst = os.path.join(self.site_dir, name)
             src = os.path.join(TEMPLATE_DIR, name)
-            if not os.path.exists(dst) and os.path.exists(src):
+            if not os.path.exists(src):
+                continue
+            if not os.path.exists(dst) or (self.sync_page and not self._same(src, dst)):
                 shutil.copyfile(src, dst)
         tmp = os.path.join(self.site_dir, STATE_FILE + ".tmp")
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(state, f, ensure_ascii=False, separators=(",", ":"))
         os.replace(tmp, os.path.join(self.site_dir, STATE_FILE))
+
+    @staticmethod
+    def _same(a: str, b: str) -> bool:
+        with open(a, "rb") as fa, open(b, "rb") as fb:
+            return fa.read() == fb.read()
 
     def _publish(self) -> bool:
         self.last_push = self.clock()

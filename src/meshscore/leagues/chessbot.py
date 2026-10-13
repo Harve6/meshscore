@@ -54,9 +54,10 @@ class ChessModule(LeaguePlugin):
         self.max_level = max(0, min(int(c.get("max_level", len(LEVELS))) - 1, len(LEVELS) - 1))
         self.opponent = Opponent(str(c.get("stockfish", "") or ""), float(c.get("think_seconds", 15)))
         self.pub = SitePublisher(str(c.get("site_dir", "") or ""), float(c.get("publish_min_seconds", 60)),
-                                 push=bool(c.get("site_push", True)))
+                                 push=bool(c.get("site_push", True)), sync_page=bool(c.get("site_sync", True)))
         self.busy = False
         self._anon = 0
+        self._contact_tried, self._contact_ok = 0.0, False   # reading the radio's contact card
         d = self.state.data
         d.setdefault("level", max(0, min(int(c.get("start_level", 1)) - 1, self.max_level)))
         d.setdefault("next_id", 1)
@@ -66,6 +67,7 @@ class ChessModule(LeaguePlugin):
         d.setdefault("game", None)
         d.setdefault("puzzle", None)
         d.setdefault("puzzle_date", "")
+        d.setdefault("contact", None)               # {"name", "uri"}: the radio's contact card, shown as a QR on the page
         g = d["game"]
         if g and not g.get("over") and g.get("window_end") and g["window_end"] < self.clock():
             g["window_end"] = self.clock() + self.window         # the clock ran out while we were down: start it over, silently
@@ -160,6 +162,7 @@ class ChessModule(LeaguePlugin):
             await self._close_round()
             g = self.game()
         await self._maybe_puzzle()
+        await self._refresh_contact(now)
         if self.pub.enabled:
             await asyncio.to_thread(self.pub.tick, self.site_state())
         self.mark_ok()
@@ -209,6 +212,25 @@ class ChessModule(LeaguePlugin):
         self.state.save()
         for t in self.final_texts(cg, rnd, level, d["level"], beat_top):
             self.alert("final", t)
+
+    # ---------------------------------------------------------------- the radio's contact card (for the web page's QR)
+    async def _refresh_contact(self, now):
+        """Read the radio's own contact card once per start (and retry every 10 min while it is unknown) so the page
+        can show the QR that lets players add the bot - a DM from a node that is not in your contacts is dropped."""
+        if not self.cfg.get("show_contact", True) or not self.pub.enabled or self._contact_ok or now - self._contact_tried < 600:
+            return
+        if not getattr(self.hub.t, "alive", False):          # the radio is not connected yet: try again next poll
+            return
+        self._contact_tried = now
+        try:
+            uri = await self.hub.t.own_contact_uri()
+        except Exception as e:
+            log.debug("contact card unavailable: %s", e)
+            return
+        if uri and uri.startswith("meshcore://"):
+            self._contact_ok = True
+            self.state.data["contact"] = {"name": getattr(self.hub.t, "own_name", "") or "", "uri": uri}
+            self.state.save()
 
     # ---------------------------------------------------------------- the daily puzzle
     async def _maybe_puzzle(self):
@@ -390,6 +412,7 @@ class ChessModule(LeaguePlugin):
                 "votes": votes, "voters": len(g.data["votes"]),
             },
             "record": d["record"],
+            "contact": d.get("contact") if self.cfg.get("show_contact", True) else None,
             "players": [{"name": n, **p} for n, p in top],
             "history": d["history"],
             "puzzle": ({"id": puz["id"], "date": puz["date"], "fen": puz["fen"], "side": puz["side"],

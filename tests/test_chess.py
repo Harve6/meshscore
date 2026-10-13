@@ -248,6 +248,9 @@ class Radio(Transport):
         self.dms.append((key, text))
         return True
 
+    async def own_contact_uri(self):
+        return getattr(self, "uri", "")
+
     def find_contact(self, name=None, key=None):
         for n, k in self.contacts.items():
             if (name and n.lower() == name.lower()) or (key and k.startswith(key[:12])):
@@ -786,7 +789,42 @@ def test_publisher_without_a_git_clone_just_writes_the_file(tmp_path):
     assert SitePublisher("").tick({"a": 1}) is False
 
 
+def test_the_page_is_kept_in_step_unless_sync_is_off(tmp_path):
+    site = tmp_path / "s"
+    SitePublisher(str(site), min_interval=0).tick({"a": 1})
+    page = site / "index.html"
+    shipped = page.read_text(encoding="utf-8")
+    page.write_text("old page", encoding="utf-8")
+    SitePublisher(str(site), min_interval=0).tick({"a": 2})
+    assert page.read_text(encoding="utf-8") == shipped                    # restored to the shipped version
+    page.write_text("my own page", encoding="utf-8")
+    SitePublisher(str(site), min_interval=0, sync_page=False).tick({"a": 3})
+    assert page.read_text(encoding="utf-8") == "my own page"
+
+
+def test_the_radios_contact_card_is_published_for_the_page(tmp_path):
+    async def go():
+        async with Rig(site_dir=str(tmp_path / "site"), site_push=False, opponent=Scripted()) as r:
+            r.t.uri = "meshcore://c0ffee00"
+            r.t.own_name = "SportsBot"
+            await r.tick()
+            st_ = json.load(open(tmp_path / "site" / "state.json", encoding="utf-8"))
+            assert st_["contact"] == {"name": "SportsBot", "uri": "meshcore://c0ffee00"}
+        async with Rig(site_dir=str(tmp_path / "site2"), site_push=False, show_contact=False) as r2:
+            r2.t.uri = "meshcore://c0ffee00"
+            await r2.tick()
+            assert json.load(open(tmp_path / "site2" / "state.json", encoding="utf-8"))["contact"] is None
+        async with Rig(site_dir=str(tmp_path / "site3"), site_push=False) as r3:      # a radio that cannot export one
+            await r3.tick()                                   # (keeps the card remembered from an earlier start)
+            assert json.load(open(tmp_path / "site3" / "state.json", encoding="utf-8"))["contact"]["uri"] == "meshcore://c0ffee00"
+        os.remove("chess_state.json")
+        async with Rig(site_dir=str(tmp_path / "site4"), site_push=False) as r4:      # ... and none when never known
+            await r4.tick()
+            assert json.load(open(tmp_path / "site4" / "state.json", encoding="utf-8"))["contact"] is None
+    run(go())
+
+
 def test_the_bundled_page_exists_and_reads_the_documented_state_keys():
     html = open(os.path.join(os.path.dirname(core.__file__), "chessplay", "site", "index.html"), encoding="utf-8").read()
-    for key in ("state.json", "game.fen", "window_end", "votes", "puzzle", "players", "record"):
+    for key in ("state.json", "game.fen", "window_end", "votes", "puzzle", "players", "record", "contact"):
         assert key.split(".")[-1] in html, key

@@ -38,6 +38,8 @@ Create the channel in the MeshCore app first (the bot needs `#chess` on its radi
 | `site_url` | | the board's address, quoted in the start and puzzle posts |
 | `publish_min_seconds` | `60` | at most one `git push` per this many seconds |
 | `site_push` | `true` | `false` writes `state.json` into `site_dir` without any git (to test locally) |
+| `site_sync` | `true` | keep `index.html` in `site_dir` the same as the page that ships with MeshScore (`false` = your own edits stay) |
+| `show_contact` | `true` | show the radio's contact QR on the page, so players can add the bot and receive its DMs |
 
 ## Commands
 

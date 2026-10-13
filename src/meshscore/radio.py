@@ -37,6 +37,7 @@ class Transport:
     async def send_dm(self, key, text): return False
     def find_contact(self, name=None, key=None): return None
     async def status_extra(self): return ""
+    async def own_contact_uri(self): return ""      # this radio's shareable contact card (meshcore://...), "" if unknown
 
 
 def chan_key(name):
@@ -223,6 +224,15 @@ class LibTransport(Transport):
             return False
         r = await self.mc.commands.send_msg(c, text)
         return r is not None and r.type != self.ET.ERROR
+
+    async def own_contact_uri(self):
+        """The radio's own contact card as the MeshCore app's QR code carries it ("meshcore://<hex>")."""
+        try:
+            r = await self.mc.commands.export_contact()
+            return str((r.payload or {}).get("uri", "")) if r is not None and r.type != self.ET.ERROR else ""
+        except Exception as e:
+            log.debug("Could not export the radio's contact card: %s", e)
+            return ""
 
     async def status_extra(self):
         try:
