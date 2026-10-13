@@ -29,3 +29,8 @@ htmlcov/
 *.sgb
 *.sav
 *.state
+
+# wrangler scratch
+.wrangler/
+node_modules/
+.dev.vars

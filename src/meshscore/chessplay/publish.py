@@ -9,6 +9,7 @@ the repo) amends the previous commit and force-pushes - but only ever a commit t
 """
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import logging
@@ -130,3 +131,75 @@ class SitePublisher:
         log.warning("%s site git %s failed (retrying later): %s", self.label.capitalize(), what,
                     (r.stderr or r.stdout).strip()[:200])
         return False
+
+
+class HttpPublisher:
+    """Same job as SitePublisher, but the page lives on a small web service instead of a git repo: the files are
+    PUT to ``<api>/api/files`` with a bearer token (see contrib/cloudflare-board). No git history, no deploy delay.
+    Only files that changed since the last successful upload are sent."""
+
+    def __init__(self, api: str = "", token: str = "", min_interval: float = 3.0, clock=time.time, session=None,
+                 template_dir: str = TEMPLATE_DIR, label: str = "chess", timeout: float = 15.0):
+        self.api = (api or "").rstrip("/")
+        self.token, self.min_interval, self.clock = token or "", float(min_interval), clock
+        self.template_dir, self.label, self.timeout = template_dir, label, timeout
+        self._session = session
+        self.sent: dict[str, str] = {}          # file name -> digest of what the service has
+        self.last_push = 0.0
+        self.failures = 0
+        self.pushed = 0
+
+    @property
+    def enabled(self) -> bool:
+        return bool(self.api and self.token)
+
+    @property
+    def session(self):
+        if self._session is None:
+            import requests
+            self._session = requests.Session()
+        return self._session
+
+    def _page(self):
+        try:
+            with open(os.path.join(self.template_dir, "index.html"), "rb") as f:
+                return f.read()
+        except OSError:
+            return None
+
+    def tick(self, state: dict, files: dict | None = None) -> bool:
+        """Upload what changed (at most once per min_interval, backing off after failures)."""
+        if not self.enabled:
+            return False
+        try:
+            body = dict(files or {})
+            body[STATE_FILE] = json.dumps(state, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            page = self._page()
+            if page is not None:
+                body["index.html"] = page
+            # `updated` changes every call; leave it out of the comparison so an idle game uploads nothing
+            stable = {k: v for k, v in state.items() if k != "updated"}
+            digests = {n: hashlib.sha1(b).hexdigest() for n, b in body.items()}
+            digests[STATE_FILE] = hashlib.sha1(json.dumps(stable, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+            changed = {n: b for n, b in body.items() if self.sent.get(n) != digests[n]}
+            if not changed or self.clock() - self.last_push < self.min_interval * (2 ** min(self.failures, 5)):
+                return False
+            self.last_push = self.clock()
+            payload = {"files": {n: {"type": _mime(n), "b64": base64.b64encode(b).decode("ascii")} for n, b in changed.items()}}
+            r = self.session.put(self.api + "/api/files", json=payload, timeout=self.timeout,
+                                 headers={"Authorization": "Bearer " + self.token})
+            if r.status_code != 200:
+                raise RuntimeError(f"HTTP {r.status_code} {r.text[:80]}")
+            for n in changed:
+                self.sent[n] = digests[n]
+            self.failures, self.pushed = 0, self.pushed + 1
+            return True
+        except Exception as e:                                   # never let publishing take the game down
+            self.failures += 1
+            log.warning("%s board upload failed (retrying later): %s", self.label.capitalize(), e)
+            return False
+
+
+def _mime(name: str) -> str:
+    return {"html": "text/html; charset=utf-8", "json": "application/json", "png": "image/png", "svg": "image/svg+xml",
+            "css": "text/css", "js": "text/javascript"}.get(name.rsplit(".", 1)[-1].lower(), "application/octet-stream")

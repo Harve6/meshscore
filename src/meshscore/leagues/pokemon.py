@@ -14,7 +14,7 @@ import os
 import time
 
 from ..chessplay.cards import CardsMixin
-from ..chessplay.publish import SitePublisher
+from ..chessplay.publish import HttpPublisher, SitePublisher
 from ..core import fit, is_admin, pack
 from ..plugin import LeaguePlugin
 from ..pokeplay import game as pg
@@ -47,9 +47,13 @@ class PokemonModule(CardsMixin, LeaguePlugin):
         self.post_every = int(c.get("post_every", 0))
         self.ack = str(c.get("ack", "dm")).lower()
         self.site_url = str(c.get("site_url", "") or "").strip()
-        self.pub = SitePublisher(str(c.get("site_dir", "") or ""), float(c.get("publish_min_seconds", 20)),
-                                 push=bool(c.get("site_push", True)), sync_page=bool(c.get("site_sync", True)),
-                                 template_dir=SITE_TEMPLATE, squash=True, label="pokemon")
+        if str(c.get("site_api", "") or "").strip():              # a Cloudflare Worker (contrib/cloudflare-board)
+            self.pub = HttpPublisher(str(c["site_api"]), str(c.get("site_token", "") or ""),
+                                     float(c.get("publish_min_seconds", 4)), template_dir=SITE_TEMPLATE, label="pokemon")
+        else:                                                     # a GitHub Pages clone
+            self.pub = SitePublisher(str(c.get("site_dir", "") or ""), float(c.get("publish_min_seconds", 20)),
+                                     push=bool(c.get("site_push", True)), sync_page=bool(c.get("site_sync", True)),
+                                     template_dir=SITE_TEMPLATE, squash=True, label="pokemon")
         self._lock = asyncio.Lock()
         self.png = b""
         self.problem = ""

@@ -1,0 +1,14 @@
+name = "meshscore-board"
+main = "src/worker.js"
+compatibility_date = "2024-11-01"
+
+# The files live in one Durable Object (SQLite-backed: available on the free plan).
+[[durable_objects.bindings]]
+name = "BOARD"
+class_name = "Board"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Board"]
+
+# The upload token is a secret, not set here:  npx wrangler secret put TOKEN
