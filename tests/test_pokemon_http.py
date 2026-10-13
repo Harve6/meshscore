@@ -98,3 +98,24 @@ def test_the_bot_uses_the_web_service_when_site_api_is_set():
         finally:
             srv.shutdown()
     run(go())
+
+
+def test_the_chess_bot_can_use_the_web_service_too():
+    import test_chess as C
+
+    async def go():
+        srv, got = serve()
+        try:
+            async with C.Rig(site_api=f"http://127.0.0.1:{srv.server_address[1]}", site_token="tok",
+                             publish_min_seconds=0, opponent=C.Scripted("e7e5")) as r:
+                await r.tick()
+                assert got["puts"], "nothing was uploaded"
+                files = got["puts"][-1]["files"]
+                assert {"state.json", "index.html"} <= set(files)
+                page = base64.b64decode(files["index.html"]["b64"]).decode()
+                assert "Mesh Chess" in page                                  # the chess page, not the Pokemon one
+                st = json.loads(base64.b64decode(files["state.json"]["b64"]))
+                assert st["game"]["id"] == 1 and "fen" in st["game"]
+        finally:
+            srv.shutdown()
+    asyncio.run(go())

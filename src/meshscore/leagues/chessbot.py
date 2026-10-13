@@ -19,7 +19,7 @@ from ..chessplay import puzzle as pz
 from ..chessplay.cards import CardsMixin
 from ..chessplay.engine import LEVELS, Opponent
 from ..chessplay.game import CrowdGame
-from ..chessplay.publish import SitePublisher
+from ..chessplay.publish import HttpPublisher, SitePublisher
 from ..core import CFG, DIGEST_GRACE_HOURS, admin_refusal, fit, fits, is_strict_admin, pack, session
 from ..plugin import LeaguePlugin
 
@@ -54,8 +54,12 @@ class ChessModule(CardsMixin, LeaguePlugin):
         self.puzzle_hour = int(c.get("puzzle_hour", 9))
         self.max_level = max(0, min(int(c.get("max_level", len(LEVELS))) - 1, len(LEVELS) - 1))
         self.opponent = Opponent(str(c.get("stockfish", "") or ""), float(c.get("think_seconds", 15)))
-        self.pub = SitePublisher(str(c.get("site_dir", "") or ""), float(c.get("publish_min_seconds", 60)),
-                                 push=bool(c.get("site_push", True)), sync_page=bool(c.get("site_sync", True)))
+        if str(c.get("site_api", "") or "").strip():              # a Cloudflare Worker (contrib/cloudflare-board)
+            self.pub = HttpPublisher(str(c["site_api"]), str(c.get("site_token", "") or ""),
+                                     float(c.get("publish_min_seconds", 4)), label="chess")
+        else:                                                     # a GitHub Pages clone
+            self.pub = SitePublisher(str(c.get("site_dir", "") or ""), float(c.get("publish_min_seconds", 60)),
+                                     push=bool(c.get("site_push", True)), sync_page=bool(c.get("site_sync", True)))
         self.busy = False
         self._anon = 0
         self._cards_init()
