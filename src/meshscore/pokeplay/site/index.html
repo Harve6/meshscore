@@ -109,7 +109,7 @@ footer { color: var(--muted); font-size: .85rem; margin: 18px 0 8px; }
       <div class="card"><h2>Top players</h2><table id="players"></table></div>
     </div>
   </div>
-  <footer>Updated <span id="updated">-</span>. A MeshScore bot; the picture refreshes every few seconds once the site deploys.</footer>
+  <footer>Updated <span id="updated">-</span>. A MeshScore bot; the picture refreshes every few seconds.<br><span id="heard"></span></footer>
 </main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
@@ -158,6 +158,7 @@ function render() {
   document.title = "Mesh Plays " + (s.game && s.game.title ? s.game.title : "Pokemon");
   ballot();
   sibling();
+  heard();
   const v = $("votes"); v.textContent = "";
   if (!s.votes.length) v.textContent = "No votes yet - the first one starts a " + s.window_seconds + " second clock.";
   const max = Math.max(1, ...s.votes.map(x => x.n));
@@ -197,6 +198,13 @@ function render() {
   for (const q of s.players) { const tr = pt.insertRow(); tr.insertCell().textContent = q.name; tr.insertCell().textContent = q.presses + " presses"; }
   cards();
   tick();
+}
+function heard() {
+  const h = state.heard, el = $("heard");
+  if (!h) { el.textContent = ""; return; }
+  if (h.ago === null || h.ago === undefined) { el.textContent = "The bot's radio has not heard anyone on the channel lately - send !ping to check it can hear you."; return; }
+  el.textContent = "The bot's radio last heard someone on the channel " + (h.ago < 90 ? "just now" : Math.round(h.ago / 60) + " min ago")
+    + " · " + h.senders_24h + " " + (h.senders_24h === 1 ? "person" : "people") + " in the last 24 h. Not getting through? Send !ping.";
 }
 function sibling() {
   const el = $("links"), ls = (state && state.links) || [];

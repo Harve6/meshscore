@@ -41,6 +41,7 @@ class Hub:
         self.started = time.time()
         self.booted = False
         self.same_air = SameAir(path=CFG.get("same_air_state") or None)   # listen-before-send dedupe with other bots
+        self.heard = {}        # chan_key -> {sender name: last time heard}: lets a web page say the radio is hearing people
         self.airtime = AirBudget()                                         # optional messages-per-hour cap
 
     def add(self, mod):
@@ -136,6 +137,8 @@ class Hub:
         text = inc.text.strip()
         if not inc.is_dm and inc.channel:
             self.same_air.hear(inc.channel, text, inc.sender_name)      # what the air already says (for dedupe)
+            if inc.sender_name and not text.startswith(SELF_MARKERS):
+                self.heard.setdefault(chan_key(inc.channel), {})[inc.sender_name] = time.time()
         if not text.startswith("!") or any(m in text for m in SELF_MARKERS) \
                 or any(f"[{m.tag}" in text for m in self.modules.values()):
             return
@@ -167,6 +170,13 @@ class Hub:
                 replies = [f"[{mod.tag} BOT] Error, try again later"]
             if replies:
                 self.reply(mod, inc, replies)
+
+    def heard_summary(self, channel, window=86400):
+        """(seconds since anyone was heard on `channel` or None, distinct senders heard within `window`)."""
+        now = time.time()
+        seen = {n: t for n, t in self.heard.get(chan_key(channel), {}).items() if now - t <= window}
+        last = max(seen.values()) if seen else None
+        return (int(now - last) if last is not None else None), len(seen)
 
     # ---------------- shared command bits ----------------
     async def cmd_ping(self, mod, inc):

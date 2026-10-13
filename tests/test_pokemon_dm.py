@@ -112,3 +112,20 @@ def test_the_screen_is_never_a_blank_fade(tmp_path):
             assert not (a == a[0, 0]).all()
     finally:
         g.close()
+
+
+def test_the_page_says_who_the_radio_has_heard():
+    async def go():
+        async with Rig(site_dir="site", site_push=False, cooldown=0) as r:
+            await r.tick()
+            assert r.m.site_state()["heard"] == {"ago": None, "senders_24h": 0}          # nobody yet
+            await r.say("hello there", name="Ann")                                         # any channel traffic counts
+            await r.say("!up", name="Bob")
+            await r.say("!a", name="Bob")
+            st = r.m.site_state()["heard"]
+            assert st["senders_24h"] == 2 and st["ago"] is not None and st["ago"] < 5
+            r.hub.heard["pokemon"]["Old"] = 1.0                                            # heard long ago: not counted
+            assert r.m.site_state()["heard"]["senders_24h"] == 2
+            await r.say("hi", name="Eve", dm=True)                                         # DMs are not channel hearing
+            assert r.m.site_state()["heard"]["senders_24h"] == 2
+    run(go())

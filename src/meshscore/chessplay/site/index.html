@@ -125,7 +125,7 @@ footer { color: var(--muted); font-size: .85rem; margin: 18px 0 8px; }
       <div class="card"><h2>Last games</h2><div id="history" class="muted">None yet</div></div>
     </div>
   </div>
-  <footer>Updated <span id="updated">-</span>. A MeshScore bot; the board refreshes about every minute.</footer>
+  <footer>Updated <span id="updated">-</span>. A MeshScore bot; the board refreshes about every minute.<br><span id="heard"></span></footer>
 </main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
@@ -249,6 +249,7 @@ function render() {
   } else pc.hidden = true;
   renderChannel();
   sibling();
+  heard();
   renderContact();
   tick();
 }
@@ -260,6 +261,13 @@ function showQR(box, card) {
   if (!window.QRCode) return;
   try { new QRCode(box, {text: card.uri, width: 132, height: 132, colorDark: "#000000", colorLight: "#ffffff",
                         correctLevel: QRCode.CorrectLevel.M}); } catch (e) { box.textContent = ""; }
+}
+function heard() {
+  const h = state.heard, el = $("heard");
+  if (!h) { el.textContent = ""; return; }
+  if (h.ago === null || h.ago === undefined) { el.textContent = "The bot's radio has not heard anyone on the channel lately - send !ping to check it can hear you."; return; }
+  el.textContent = "The bot's radio last heard someone on the channel " + (h.ago < 90 ? "just now" : Math.round(h.ago / 60) + " min ago")
+    + " · " + h.senders_24h + " " + (h.senders_24h === 1 ? "person" : "people") + " in the last 24 h. Not getting through? Send !ping.";
 }
 function sibling() {
   const el = $("links"), ls = (state && state.links) || [];
