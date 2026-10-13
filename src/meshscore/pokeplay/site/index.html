@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mesh Plays Pokemon Red</title>
+<style>
+:root {
+  --bg: #f4f1ea; --card: #fffdf8; --ink: #23201b; --muted: #6f685c; --line: #ddd5c5; --accent: #c0392b; --bar: #c0392b24;
+  --hp: #3ca55c; --hplow: #d9a21b; --hpcrit: #c0392b;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #17191c; --card: #1f2226; --ink: #ece8df; --muted: #9a9486; --line: #33373d; --accent: #ff6b57; --bar: #ff6b5733; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 1040px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 1.35rem; margin: 4px 0 2px; }
+h2 { font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; font-weight: 600; }
+.sub { color: var(--muted); margin: 0 0 14px; font-size: .92rem; }
+.grid { display: grid; grid-template-columns: minmax(0, 560px) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 760px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+.stack > * + * { margin-top: 14px; }
+.screen { width: 100%; aspect-ratio: 10 / 9; background: #cfd8a8; border-radius: 6px; border: 4px solid #2b2d31; overflow: hidden; }
+.screen img { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+.status { margin: 10px 0 0; display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+.pill { background: var(--bar); color: var(--accent); border-radius: 99px; padding: 1px 10px; font-weight: 600; font-size: .85rem; }
+.big { font-size: 1.05rem; font-weight: 600; }
+.muted { color: var(--muted); }
+.pad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
+.pad span { border: 1px solid var(--line); border-radius: 6px; padding: 5px 4px; text-align: center; font-size: .9rem; background: var(--bar); }
+.how { background: var(--bar); border-radius: 8px; padding: 8px 10px; margin-top: 10px; font-size: .92rem; }
+code { background: var(--bar); padding: 0 5px; border-radius: 4px; font-size: .92em; }
+.votes .row { position: relative; padding: 4px 8px; border-radius: 6px; margin: 3px 0; display: flex; justify-content: space-between; overflow: hidden; }
+.votes .row i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--bar); z-index: 0; }
+.votes .row span { position: relative; z-index: 1; }
+.mon { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; margin: 6px 0; }
+.hpbar { grid-column: 1 / -1; height: 6px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.hpbar i { display: block; height: 100%; }
+table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+td { padding: 3px 4px; border-bottom: 1px solid var(--line); } td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+ul.ev { list-style: none; margin: 0; padding: 0; } ul.ev li { padding: 3px 0; border-bottom: 1px solid var(--line); }
+.warn { background: #e5484d22; border: 1px solid #e5484d66; padding: 8px 10px; border-radius: 8px; margin-bottom: 12px; display: none; }
+.contact { display: grid; grid-template-columns: 148px 1fr; gap: 12px; align-items: start; }
+.qr { background: #fff; padding: 8px; border-radius: 6px; width: 148px; height: 148px; }
+.qr img, .qr canvas { display: block; width: 132px !important; height: 132px !important; }
+.uri { word-break: break-all; font-size: .72rem; }
+@media (max-width: 420px) { .contact { grid-template-columns: minmax(0, 1fr); } }
+footer { color: var(--muted); font-size: .85rem; margin: 18px 0 8px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Mesh Plays Pokemon <span class="muted">- Red Version</span></h1>
+  <p class="sub">One game, everyone on the mesh channel at once. Send a button over the radio; the most popular one is pressed.</p>
+  <div class="warn" id="warn"></div>
+  <div class="grid">
+    <div class="stack">
+      <div class="card">
+        <div class="screen"><img id="screen" alt="game screen"></div>
+        <div class="status">
+          <span class="pill" id="loc">-</span>
+          <span class="big" id="clock">Waiting for the first vote</span>
+          <span class="muted" id="round"></span>
+        </div>
+        <div class="pad"><span>!up</span><span>!down</span><span>!left</span><span>!right</span>
+          <span>!a</span><span>!b</span><span>!start</span><span>!select</span></div>
+        <div class="how">Send one on the channel. Add a number to walk further: <code>!up 5</code>. Most votes when the clock runs
+          out is pressed. <code>!where</code> and <code>!party</code> answer on the radio.</div>
+      </div>
+      <div class="card" id="chancard" hidden>
+        <h2>Play: join <span id="chname">the channel</span></h2>
+        <div class="contact">
+          <div id="chqr" class="qr"></div>
+          <div>
+            <p style="margin:0 0 6px">Scan this in the MeshCore app to join the channel, then press a button.</p>
+            <p class="muted" style="margin:0" id="chhow"></p>
+            <a id="churi" class="muted uri" href="#"></a>
+          </div>
+        </div>
+      </div>
+      <div class="card" id="contactcard" hidden>
+        <h2>Add the bot as a contact</h2>
+        <div class="contact">
+          <div id="qr" class="qr"></div>
+          <div>
+            <p style="margin:0 0 6px">Scan this so the bot's replies reach you by DM. Votes work without it.</p>
+            <a id="curi" class="muted uri" href="#"></a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="card votes"><h2>Votes this round</h2><div id="votes" class="muted">No votes yet</div></div>
+      <div class="card"><h2>Party</h2><div id="party" class="muted">No Pokemon yet</div>
+        <p class="muted" id="facts" style="margin:8px 0 0"></p></div>
+      <div class="card"><h2>What's happened</h2><ul class="ev" id="events"><li class="muted">Nothing yet</li></ul></div>
+      <div class="card"><h2>Recent inputs</h2><div id="recent" class="muted">None yet</div></div>
+      <div class="card"><h2>Top players</h2><table id="players"></table></div>
+    </div>
+  </div>
+  <footer>Updated <span id="updated">-</span>. A MeshScore bot; the picture refreshes every few seconds once the site deploys.</footer>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+"use strict";
+let state = null;
+const $ = id => document.getElementById(id);
+function ago(sec) {
+  if (sec < 90) return "just now";
+  if (sec < 5400) return Math.round(sec / 60) + " min ago";
+  if (sec < 172800) return Math.round(sec / 3600) + " h ago";
+  return Math.round(sec / 86400) + " days ago";
+}
+function setQR(box, text) {
+  box.textContent = "";
+  if (!window.QRCode) return;
+  try { new QRCode(box, {text: text, width: 132, height: 132, colorDark: "#000000", colorLight: "#ffffff",
+                        correctLevel: QRCode.CorrectLevel.L}); } catch (e) { box.textContent = ""; }
+}
+let chFor = "", ctFor = "";
+function cards() {
+  const ch = state.channel, cc = $("chancard");
+  if (ch && ch.name) {
+    cc.hidden = false; $("chname").textContent = ch.name;
+    $("chhow").textContent = ch.name.charAt(0) === "#"
+      ? "Or by hand: add a hashtag channel named " + ch.name.slice(1) + " (no password needed)." : "";
+    const a = $("churi");
+    if (ch.uri) { a.hidden = false; a.href = ch.uri; a.textContent = ch.uri.slice(0, 66) + "...";
+      if (chFor !== ch.uri) { chFor = ch.uri; setQR($("chqr"), ch.uri); } $("chqr").style.display = ""; }
+    else { a.hidden = true; $("chqr").style.display = "none"; }
+  } else cc.hidden = true;
+  const c = state.contact, ct = $("contactcard");
+  if (c && c.uri) {
+    ct.hidden = false; const a = $("curi"); a.href = c.uri; a.textContent = c.uri.slice(0, 66) + "...";
+    if (ctFor !== c.uri) { ctFor = c.uri; setQR($("qr"), c.uri); }
+  } else ct.hidden = true;
+}
+function render() {
+  const s = state, st = s.status;
+  $("screen").src = "screen.png?t=" + s.updated;
+  $("loc").textContent = st && st.started ? st.map_name : "Title screen";
+  $("round").textContent = "Round " + s.round;
+  const v = $("votes"); v.textContent = "";
+  if (!s.votes.length) v.textContent = "No votes yet - the first one starts a " + s.window_seconds + " second clock.";
+  const max = Math.max(1, ...s.votes.map(x => x.n));
+  for (const x of s.votes) {
+    const row = document.createElement("div"); row.className = "row";
+    const bar = document.createElement("i"); bar.style.width = (100 * x.n / max) + "%";
+    const a = document.createElement("span"); a.textContent = x.action;
+    const b = document.createElement("span"); b.textContent = x.n + (x.n === 1 ? " vote" : " votes");
+    row.append(bar, a, b); v.appendChild(row);
+  }
+  const p = $("party"); p.textContent = "";
+  if (st && st.party && st.party.length) {
+    for (const m of st.party) {
+      const d = document.createElement("div"); d.className = "mon";
+      const n = document.createElement("span"); n.textContent = m.name + (m.name !== m.species ? " (" + m.species + ")" : "");
+      const l = document.createElement("span"); l.textContent = "L" + m.level + "  " + m.hp + "/" + m.max_hp;
+      const bar = document.createElement("div"); bar.className = "hpbar";
+      const fill = document.createElement("i"); const f = m.max_hp ? m.hp / m.max_hp : 0;
+      fill.style.width = Math.round(100 * f) + "%";
+      fill.style.background = f > .5 ? "var(--hp)" : f > .2 ? "var(--hplow)" : "var(--hpcrit)";
+      bar.appendChild(fill); d.append(n, l, bar); p.appendChild(d);
+    }
+  } else p.textContent = "No Pokemon yet";
+  $("facts").textContent = st && st.started
+    ? "Badges " + st.badges + "/8 · Pokedex " + st.owned + " caught, " + st.seen + " seen · $" + st.money : "";
+  const ev = $("events"); ev.textContent = "";
+  if (!s.events.length) { const li = document.createElement("li"); li.className = "muted"; li.textContent = "Nothing yet"; ev.appendChild(li); }
+  for (const e of s.events) { const li = document.createElement("li"); li.textContent = e.text; ev.appendChild(li); }
+  const r = $("recent");
+  r.textContent = s.recent.length ? s.recent.map(x => "#" + x.n + " " + x.action + " (" + x.votes + "/" + x.voters + ")").join("  ·  ") : "None yet";
+  const pt = $("players"); pt.textContent = "";
+  if (!s.players.length) { pt.insertRow().insertCell().textContent = "Nobody yet"; }
+  for (const q of s.players) { const tr = pt.insertRow(); tr.insertCell().textContent = q.name; tr.insertCell().textContent = q.presses + " presses"; }
+  cards();
+  tick();
+}
+function tick() {
+  if (!state) return;
+  const now = Date.now() / 1000, we = state.window_end;
+  if (we) { const left = Math.max(0, Math.round(we - now)); $("clock").textContent = "Vote clock 0:" + String(left).padStart(2, "0"); }
+  else $("clock").textContent = "Waiting for the first vote";
+  const age = now - state.updated;
+  $("updated").textContent = ago(Math.max(0, age));
+  const w = $("warn");
+  if (age > 3 * 3600) { w.style.display = "block"; w.textContent = "The bot has not published for " + ago(age) + " - it may be offline."; }
+  else w.style.display = "none";
+}
+async function load() {
+  try {
+    const r = await fetch("state.json?t=" + Date.now(), {cache: "no-store"});
+    if (!r.ok) throw new Error(r.status);
+    state = await r.json();
+    render();
+  } catch (e) {
+    const w = $("warn"); w.style.display = "block";
+    w.textContent = state ? "Could not refresh (will retry)." : "No game data yet - the bot has not published its first screen.";
+  }
+}
+load();
+setInterval(load, 10000);
+setInterval(tick, 1000);
+</script>
+</body>
+</html>

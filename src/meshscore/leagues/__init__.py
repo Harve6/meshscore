@@ -50,6 +50,11 @@ def builtin():
         log.debug("The chess bot type needs the python-chess package (pip install chess)")
     except Exception:
         log.exception("The chess bot type could not be loaded; the other bots are unaffected")
+    try:                                         # crowd-plays Pokemon Red; needs `pip install pyboy pillow` + your own ROM
+        from .pokemon import PokemonModule
+        types["pokemon"] = PokemonModule
+    except Exception:
+        log.exception("The pokemon bot type could not be loaded; the other bots are unaffected")
     return types
 
 

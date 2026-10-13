@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+* **Pokemon Red bot** (`type = "pokemon"`): the whole channel plays one game. The first button vote of a round starts a
+  30-second clock, the most popular button is pressed in a headless PyBoy emulator, and the screen goes to a web page
+  (the screenshot repo is amended and force-pushed so it never bloats). The channel hears events read from the game's
+  memory - area changes, battles, level ups, evolutions, badges, new Pokemon, wipe-outs. Saves resume after restarts.
+  You supply the ROM; `*.gb` / `*.state` are git-ignored. Needs `pip install pyboy pillow`. See docs/pokemon.md.
+* The channel / contact QR logic is shared between the chess and Pokemon pages.
 * **Chess bot** (`type = "chess"`): the whole channel plays White in one game against a bot, by voting. The first
   `!move` of a round starts a 5-minute clock, the most popular move is played, the bot answers, one post per round.
   Eight levels (a built-in pure-Python engine; optional Stockfish for the upper ones); the bot moves up a level each

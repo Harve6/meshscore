@@ -22,3 +22,10 @@ data/
 htmlcov/
 .hypothesis/
 *.toml.bak
+
+# game ROMs and emulator saves: never commit these
+*.gb
+*.gbc
+*.sgb
+*.sav
+*.state

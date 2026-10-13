@@ -165,7 +165,7 @@ def pick_radio(ask=input, say=print):
 
 
 # ---------------------------------------------------------------- setup wizard
-NO_TEAM = ("mlb-postseason", "market", "chess")      # bot types that are not tied to one team
+NO_TEAM = ("mlb-postseason", "market", "chess", "pokemon")      # bot types that are not tied to one team
 LEAGUE_CHOICES = [
     ("nhl", "NHL hockey - one team"),
     ("mlb", "MLB baseball - one team"),
@@ -174,6 +174,7 @@ LEAGUE_CHOICES = [
     ("mlb-postseason", "MLB postseason - every team, every round"),
     ("market", "Markets - indices, stocks, commodities, crypto, news (no team)"),
     ("chess", "Chess - the whole channel plays one game against a bot that gets stronger (needs: pip install chess)"),
+    ("pokemon", "Pokemon Red - the whole channel plays one game (needs: pip install pyboy pillow, and your own ROM)"),
 ]
 
 
@@ -683,7 +684,7 @@ def build_parser():
     p = sub.add_parser("bots", help="list / add / remove / enable / disable the bots in your config")
     p.add_argument("action", nargs="?", choices=["list", "add", "remove", "enable", "disable"], default="list")
     p.add_argument("target", nargs="?", help="bot name (remove / enable / disable)")
-    p.add_argument("--type", help="add: nhl | mlb | nfl | ohl | mlb-postseason | market | chess")
+    p.add_argument("--type", help="add: nhl | mlb | nfl | ohl | mlb-postseason | market | chess | pokemon")
     p.add_argument("--team", help="add: team code")
     p.add_argument("--channel", help='add: channel on the radio, e.g. "#jays"')
     p.add_argument("--name", help="add: bot name (also its command prefix)")

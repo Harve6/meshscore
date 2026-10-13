@@ -29,6 +29,7 @@ dependencies = [
 [project.optional-dependencies]
 ble = ["bleak>=0.21"]
 chess = ["chess>=1.10"]
+pokemon = ["pyboy>=2.4", "pillow>=10"]
 dev = ["pytest>=7", "pytest-cov>=4", "hypothesis>=6", "ruff>=0.4", "chess>=1.10"]
 
 [project.scripts]
@@ -43,6 +44,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "meshscore.chessplay" = ["site/*", "site/.nojekyll"]
+"meshscore.pokeplay" = ["site/*", "site/.nojekyll"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

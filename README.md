@@ -29,6 +29,9 @@ mesh - including **more than one bot on the same air** ([how that works](docs/sa
   headline, and answers `!quote AAPL` ([docs](docs/market.md)).
 * **Chess for the whole channel**: everyone votes the next move with `!move`, the bot answers, and it gets stronger
   every time the crowd wins. A web board on GitHub Pages and a daily Lichess puzzle ([docs](docs/chess.md)).
+* **Pokemon Red for the whole channel**: the most popular button is pressed in a headless emulator, with a live
+  screen on a web page and radio posts for new areas, battles, level ups and badges - bring your own ROM
+  ([docs](docs/pokemon.md)).
 * **Easy setup**: `meshscore init` finds your radio and channels, `meshscore check` tests everything before you go live.
 * **Quiet by default**: no "I'm online!" spam on restarts, no replaying of games that were already over.
 * **Real-data tests**: the alert logic is replayed against real past games (see [Testing](#testing)).
