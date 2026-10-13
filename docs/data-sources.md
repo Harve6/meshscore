@@ -8,6 +8,7 @@ league's own website or app uses. That keeps it free to run - and means you shou
 | `nhl` | `https://api-web.nhle.com/v1/...` | none | The NHL's web API. Goal lists lag the score by several seconds; MeshScore waits and cross-checks a second endpoint before naming a scorer. |
 | `mlb`, `mlb-postseason` | `https://statsapi.mlb.com/api/v1/...` | none | MLB Stats API. Warm-up is reported as "live", rescheduled games appear twice under one id - both handled. |
 | `nfl` | `https://site.api.espn.com/apis/site/v2/sports/football/nfl/...` | none | ESPN's site API. The team schedule has no live score, so live games are overlaid from the game summary. Scoring plays list the score *after* the extra point and can lag the scoreboard. |
+| `market` | `https://query1.finance.yahoo.com/...`, CoinGecko `/api/v3/coins/markets`, CNBC and MarketWatch RSS | none | Yahoo Finance's public chart / spark / screener endpoints (unofficial; quotes can be delayed), CoinGecko's free tier (rate limited, cached 4 min) and two news RSS feeds. See [market.md](market.md). Information only - not financial advice. |
 | `ohl`, `hockeytech` | `https://lscluster.hockeytech.com/feed/index.php` | public widget key | The feed behind the OHL (and many other hockey leagues') own websites. It lags, skips 00:00, sometimes reports a tied "Final" before overtime and fills the three stars one at a time; MeshScore guards against each of these. |
 
 ## What that means

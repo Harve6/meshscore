@@ -114,7 +114,8 @@ class Hub:
         cmd, rest = parts[0].lower(), parts[1:]
         mod = self.modules.get(cmd[1:]) or self.aliases.get(cmd[1:])
         if mod:  # explicit "!jays ..." / "!ohl ..." / "!ps ..."
-            cmd, rest = ("!" + rest[0].lower(), rest[1:]) if rest else ("!help", [])
+            # "!jays" alone is its help; a bot can name another command for that (the market bot: "!market" = the indices)
+            cmd, rest = ("!" + rest[0].lower(), rest[1:]) if rest else (getattr(mod, "bare_command", "!help"), [])
         elif inc.is_dm:
             mod = self.modules.get(CFG["dm_default"]) or next(iter(self.modules.values()), None)
         else:
@@ -151,7 +152,8 @@ class Hub:
             inc, mod, cmd, arg = await self.cmdq.get()
             key = (mod.name, inc.sender_key if inc.is_dm else "chan", cmd,
                    arg.lower() if cmd in mod.arg_cmds else "")
-            if time.time() - self.cooldowns.get(key, 0) < CFG["command_cooldown"]:
+            if cmd not in getattr(mod, "no_cooldown_cmds", ()) and \
+                    time.time() - self.cooldowns.get(key, 0) < CFG["command_cooldown"]:
                 log.info("Cooldown: %s %s", mod.name, cmd)
                 continue
             self.cooldowns[key] = time.time()

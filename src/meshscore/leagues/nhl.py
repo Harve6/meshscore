@@ -11,7 +11,7 @@ from typing import Optional
 
 import requests
 
-from ..core import CFG, DIGEST_GRACE_HOURS, GOAL_LAG_WAIT, HOCKEY_KINDS, LATE_STARS_WAIT, ModeMixin, PhaseMixin, State, _i, fit, fmt_time, now, pack, sched_days, session, start_first, tzinfo, when
+from ..core import scheduled_in, CFG, DIGEST_GRACE_HOURS, GOAL_LAG_WAIT, HOCKEY_KINDS, LATE_STARS_WAIT, ModeMixin, PhaseMixin, State, _i, fit, fmt_time, now, pack, sched_days, session, start_first, tzinfo, when
 
 log = logging.getLogger("meshscore")
 
@@ -577,7 +577,7 @@ class NhlModule(PhaseMixin, ModeMixin):
         live_s, idle_s = CFG["poll_live_seconds"], CFG["poll_idle_seconds"]
         if any(g.live for g in games):
             return live_s
-        soon = [(g.start - now()).total_seconds() for g in games if g.scheduled and g.start and g.start > now()]
+        soon = scheduled_in(games)
         if soon:
             t = min(soon)
             return live_s if t <= 900 else max(live_s, min(idle_s, t - 600))

@@ -165,12 +165,15 @@ def pick_radio(ask=input, say=print):
 
 
 # ---------------------------------------------------------------- setup wizard
+NO_TEAM = ("mlb-postseason", "market", "chess")      # bot types that are not tied to one team
 LEAGUE_CHOICES = [
     ("nhl", "NHL hockey - one team"),
     ("mlb", "MLB baseball - one team"),
     ("nfl", "NFL football - one team"),
     ("ohl", "OHL / CHL hockey (HockeyTech) - one team or the whole league"),
     ("mlb-postseason", "MLB postseason - every team, every round"),
+    ("market", "Markets - indices, stocks, commodities, crypto, news (no team)"),
+    ("chess", "Chess - the whole channel plays one game against a bot that gets stronger (needs: pip install chess)"),
 ]
 
 
@@ -192,6 +195,15 @@ def _pick_team(kind, ask, say):
         if t and (not codes or t in codes):
             return t, codes.get(t, "")
         say(f"  {t!r} isn't one of the codes above.")
+
+
+def postseason_companion(team_bot, taken):
+    """(name, fields) for the MLB postseason bot that rides along on an MLB team bot's channel: every other playoff
+    game goes there too, and the team's own games are skipped (the team bot already posts those)."""
+    name = "mlb"
+    while name in taken:
+        name += "2"
+    return name, {"type": "mlb-postseason", "channel": team_bot["channel"], "skip_teams": [str(team_bot["team"]).upper()]}
 
 
 def _pick_channel(channels, ask, say, default):
@@ -234,7 +246,7 @@ def run_init(path="meshscore.toml", ask=input, say=print, radio=None, channels=N
         kind = LEAGUE_CHOICES[int(ans) - 1][0]
         b = {"type": kind}
         name = kind.replace("-", "")
-        if kind != "mlb-postseason":
+        if kind not in NO_TEAM:
             team, long_name = _pick_team(kind, ask, say)
             if team:
                 b["team"] = team
@@ -242,6 +254,11 @@ def run_init(path="meshscore.toml", ask=input, say=print, radio=None, channels=N
                 if long_name:
                     b["label"] = long_name
         b["channel"] = _pick_channel(channels, ask, say, name)
+        if kind == "market":
+            b["tag"] = "MKT"
+            wl = ask("  Stocks to watch (alerts on big moves; e.g. AAPL NVDA SHOP.TO) [none]: ").strip().upper()
+            if wl:
+                b["watch"] = re.split(r"[\s,]+", wl)
         if kind == "ohl" and not b.get("team"):
             pri = ask("  Priority teams (get every alert even on busy nights, e.g. KIT GUE) [none]: ").strip().upper()
             if pri:
@@ -249,6 +266,11 @@ def run_init(path="meshscore.toml", ask=input, say=print, radio=None, channels=N
         while name in bots:
             name += "2"
         bots[name] = b
+        if kind == "mlb" and b.get("team") and ask(
+                f"\nAlso post every other MLB postseason game on {b['channel']}, even when {b['team']} isn't in it? [y/N] "
+        ).strip().lower() == "y":
+            ps_name, ps_fields = postseason_companion(b, bots)
+            bots[ps_name] = ps_fields
         if ask("\nAdd another bot? [y/N] ").strip().lower() != "y":
             break
     tz = ask("\nTime zone for game times, e.g. America/Toronto [this computer's]: ").strip()
@@ -300,7 +322,7 @@ def add_bot_interactive(text, args, ask=input, say=print):
     fields = {"type": kind}
     name = args.name or ""
     team = (args.team or "").upper()
-    if kind != "mlb-postseason" and not team:
+    if kind not in NO_TEAM and not team:
         team, long_name = _pick_team(kind, ask, say)
         if long_name and not args.label:
             fields["label"] = long_name
@@ -346,6 +368,26 @@ def cmd_bots(args):
             name, fields = add_bot_interactive(text, args)
             new = config.add_bot_text(text, name, fields)
             done = f"Added bot {name!r}: {fields}"
+            if fields.get("type") == "mlb" and fields.get("team"):
+                # an MLB postseason bot already on this channel must not repeat this team's games
+                for n, b in config.parse(text)["modules"].items():
+                    skip = [str(x).upper() for x in (b.get("skip_teams") or [])]
+                    if (str(b.get("type")) == "mlb-postseason" and str(b.get("channel", "")).lstrip("#").lower()
+                            == fields["channel"].lstrip("#") and fields["team"] not in skip):
+                        new = config.set_field_text(new, n, "skip_teams", skip + [fields["team"]])
+                        done += f"\nBot {n!r} (postseason) now skips {fields['team']}'s games on {fields['channel']}."
+            if getattr(args, "postseason", False):
+                if fields.get("type") != "mlb" or not fields.get("team"):
+                    print("Not changed: --postseason goes with an MLB team bot (--type mlb --team CODE).")
+                    return 2
+                have = [n for n, b in config.parse(text)["modules"].items() if str(b.get("type")) == "mlb-postseason"
+                        and str(b.get("channel", "")).lstrip("#").lower() == fields["channel"].lstrip("#")]
+                if have:
+                    done += f"\n{fields['channel']} already has the postseason bot ({have[0]!r}); not adding another."
+                else:
+                    ps_name, ps_fields = postseason_companion(fields, {*config.bot_blocks(text), name.lower()})
+                    new = config.add_bot_text(new, ps_name, ps_fields)
+                    done += f"\nAdded bot {ps_name!r}: {ps_fields}"
         else:
             if not args.target:
                 print(f"meshscore bots {action} NAME   (names: {', '.join(config.bot_blocks(text)) or 'none'})")
@@ -641,12 +683,14 @@ def build_parser():
     p = sub.add_parser("bots", help="list / add / remove / enable / disable the bots in your config")
     p.add_argument("action", nargs="?", choices=["list", "add", "remove", "enable", "disable"], default="list")
     p.add_argument("target", nargs="?", help="bot name (remove / enable / disable)")
-    p.add_argument("--type", help="add: nhl | mlb | nfl | ohl | mlb-postseason")
+    p.add_argument("--type", help="add: nhl | mlb | nfl | ohl | mlb-postseason | market | chess")
     p.add_argument("--team", help="add: team code")
     p.add_argument("--channel", help='add: channel on the radio, e.g. "#jays"')
     p.add_argument("--name", help="add: bot name (also its command prefix)")
     p.add_argument("--tag", help="add: text in messages instead of the team code")
     p.add_argument("--label", help="add: long name")
+    p.add_argument("--postseason", action="store_true",
+                   help="add an MLB team bot: also post every other MLB postseason game on its channel")
     add_cfg(p)
     p.set_defaults(fn=cmd_bots)
 

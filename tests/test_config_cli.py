@@ -261,3 +261,44 @@ def test_adding_a_team_bot_asks_for_team_and_channel(tmp_path, monkeypatch, caps
     text = COMMENTED
     name, fields = cli.add_bot_interactive(text, args(type="mlb"), ask=(lambda it: lambda prompt="": next(it))(iter(["nyy", "yankees"])), say=lambda *a: None)
     assert name == "nyy" and fields == {"type": "mlb", "label": "New York Yankees", "team": "NYY", "channel": "#yankees"}
+
+
+def test_wizard_offers_postseason_on_a_team_channel(tmp_path, monkeypatch):
+    import meshscore.teams as teams
+    monkeypatch.setattr(teams, "team_list", lambda kind: [("TOR", "Toronto Blue Jays"), ("NYY", "New York Yankees")])
+    # league 2 = MLB team, team, channel, yes to the postseason on it, no more bots, tz
+    answers = iter(["2", "TOR", "#jays", "y", "n", "America/Toronto"])
+    out = tmp_path / "meshscore.toml"
+    run_init(str(out), ask=lambda prompt="": next(answers), say=lambda *a: None,
+             radio={"transport": "serial", "port": "COM9"}, channels=["jays"])
+    config.load_config(str(out), strict=True)
+    assert CFG["modules"]["tor"]["type"] == "mlb"
+    ps = CFG["modules"]["mlb"]
+    assert ps["type"] == "mlb-postseason" and ps["channel"] == "#jays" and ps["skip_teams"] == ["TOR"]
+
+
+def test_bots_add_postseason_flag_adds_both(tmp_path, capsys):
+    p = tmp_path / "meshscore.toml"
+    p.write_text(COMMENTED, encoding="utf-8")
+    c = str(p)
+    ns = args(action="add", type="mlb", team="NYY", channel="#yankees", name="nyy", config=c)
+    ns.postseason = True
+    assert cli.cmd_bots(ns) == 0
+    mods = parse(p.read_text(encoding="utf-8"))["modules"]
+    assert mods["nyy"]["type"] == "mlb"
+    assert mods["mlb"]["type"] == "mlb-postseason" and mods["mlb"]["channel"] == "#yankees" and mods["mlb"]["skip_teams"] == ["NYY"]
+    nhl = args(action="add", type="nhl", team="BOS", channel="#bruins", name="bos", config=c)
+    nhl.postseason = True                                           # only an MLB team bot can take it
+    assert cli.cmd_bots(nhl) == 2 and "bos" not in parse(p.read_text(encoding="utf-8"))["modules"]
+
+
+def test_adding_a_team_bot_makes_an_existing_postseason_bot_skip_it(tmp_path, capsys):
+    p = tmp_path / "meshscore.toml"
+    p.write_text('[radio]\nport = "COM3"\n\n[bots.mlb]\ntype = "mlb-postseason"\nchannel = "#jays"\n', encoding="utf-8")
+    c = str(p)
+    ns = args(action="add", type="mlb", team="TOR", channel="#jays", name="jays", config=c)
+    ns.postseason = True                                            # already has one: no second postseason bot
+    assert cli.cmd_bots(ns) == 0
+    mods = parse(p.read_text(encoding="utf-8"))["modules"]
+    assert mods["mlb"]["skip_teams"] == ["TOR"] and mods["jays"]["type"] == "mlb"
+    assert [n for n, b in mods.items() if b.get("type") == "mlb-postseason"] == ["mlb"]

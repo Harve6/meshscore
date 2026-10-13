@@ -239,6 +239,23 @@ def set_enabled_text(text, name, enabled):
     return "\n".join(lines)
 
 
+def set_field_text(text, name, key, value):
+    """Set `key = value` inside an existing [bots.NAME] table (replacing the line if it is there, adding it if not)."""
+    blocks = bot_blocks(text)
+    if name.lower() not in blocks:
+        raise ConfigError(f"No bot called {name!r}. Bots: {', '.join(blocks) or '(none)'}")
+    a, b = blocks[name.lower()]
+    lines = text.split("\n")
+    new = f"{key} = {_toml_value(value)}"
+    for k in range(a + 1, b):
+        if re.match(rf"^\s*{re.escape(key)}\s*=", lines[k]):
+            lines[k] = new
+            break
+    else:
+        lines.insert(b, new)
+    return "\n".join(lines)
+
+
 def save_edited(path, new_text):
     """Validate `new_text`, keep the previous file as <path>.bak, then write it. Raises ConfigError (file untouched)
     if the result would not load or has problems."""

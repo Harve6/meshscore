@@ -25,6 +25,10 @@ mesh - including **more than one bot on the same air** ([how that works](docs/sa
 * **Several bots, one mesh**: bots listen before they send and form a line-up, so two of them following the same game
   post once - no coordination traffic, no config required.
 * **Plugins**: add a league in ~40 lines ([guide](docs/writing-a-plugin.md)).
+* **Not just sports**: a market bot posts a morning snapshot, a closing recap, big index moves, crypto and the odd
+  headline, and answers `!quote AAPL` ([docs](docs/market.md)).
+* **Chess for the whole channel**: everyone votes the next move with `!move`, the bot answers, and it gets stronger
+  every time the crowd wins. A web board on GitHub Pages and a daily Lichess puzzle ([docs](docs/chess.md)).
 * **Easy setup**: `meshscore init` finds your radio and channels, `meshscore check` tests everything before you go live.
 * **Quiet by default**: no "I'm online!" spam on restarts, no replaying of games that were already over.
 * **Real-data tests**: the alert logic is replayed against real past games (see [Testing](#testing)).

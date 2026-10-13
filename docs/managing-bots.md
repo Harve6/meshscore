@@ -26,7 +26,21 @@ python -m meshscore bots add --type mlb-postseason --channel "#jays" --name mlb
 
 or just `python -m meshscore bots add` and answer the questions (league, team, channel).
 
-Types: `nhl`, `mlb`, `nfl`, `ohl`, `mlb-postseason`. Team codes: `python -m meshscore teams nhl`.
+Types: `nhl`, `mlb`, `nfl`, `ohl`, `mlb-postseason`, `market`, `chess`. Team codes: `python -m meshscore teams nhl`.
+
+**MLB team channel that also follows the whole postseason** (optional): a team bot posts its own team's games all
+season, and in October MLB fans usually want every playoff game, not just their team's. Add `--postseason` and the
+channel gets both - the team bot as normal, plus the postseason bot for everyone else's games:
+
+```bat
+python -m meshscore bots add --type mlb --team TOR --channel "#jays" --name jays --postseason
+```
+
+(`meshscore init` and the interactive `bots add` ask the same thing after you pick an MLB team.) The postseason bot
+is added as `[bots.mlb]` with `skip_teams = ["TOR"]`, so your team's playoff games are posted once, by the team bot.
+Leave it off and the channel stays your team only. `tiers` in [configuration.md](configuration.md) sets how much of
+each round the channel gets (Wild Card is a score every 3 innings plus the final; the League Championship Series and
+World Series are every run).
 
 Rules of thumb:
 

@@ -421,6 +421,8 @@ async def main():
     lt2 = m.LibTransport(); lt2.mc, lt2.ET = FakeMc({0: "Public", 1: "#ohl"}), EventType
     await lt2._map_channels({"ohl": {"channel": "#ohl", "channel_index": None}, "postseason": {"channel": "#mlb", "channel_index": None}})
     assert lt2.chans == {"ohl": 1}                              # the missing one is logged, the rest still works
+    ltg = m.LibTransport(); ltg.mc, ltg.ET = FakeMc({0: "Public", 1: "#ohl", 12: "#bills"}), EventType
+    assert await ltg._read_channel_names() == {0: "Public", 1: "#ohl", 12: "#bills"}   # a long run of empty slots is not the end
     print("   ok")
 
     print("\n== the real connect path: open() for the menu, then start() reusing that connection (and a plain reconnect)")

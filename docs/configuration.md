@@ -70,6 +70,7 @@ One table per bot. `NAME` is also its command prefix on shared channels (`!leafs
 | `tiers` | mlb-postseason | how much of each round the channel gets: `{F="merged", D="key", L="lead", W="full"}` |
 | `skip_teams` | mlb-postseason | team codes that have their own channel and shouldn't repeat here |
 | `headsup_minutes`, `season` | mlb-postseason | "game starting soon" notice lead time; pin a season |
+| `watch`, `indices`, `commodities`, `crypto`, `open_brief`, `close_recap`, `crypto_daily`, `news`, `move_alert_pct`, ... | market | the market bot's settings - all in [market.md](market.md) |
 
 ### Alert levels (`!mode`)
 

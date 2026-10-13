@@ -41,7 +41,9 @@ class LeaguePlugin(ModeMixin):
     kinds = HOCKEY_KINDS                  # {"max": {...}, "min": {...}, "off": set()}: which alert kinds each !mode sends
     min_blurb = "results only"            # what "min" means, shown by !mode
     arg_cmds: tuple = ()                  # commands whose argument matters for the per-command cooldown (e.g. "!team")
+    no_cooldown_cmds: tuple = ()          # commands exempt from the shared per-channel cooldown (a vote: every voter counts)
     aliases: tuple = ()                   # extra command prefixes that route here ("!ps score")
+    bare_command = "!help"                # what "!name" on its own answers with (the market bot: "!indices")
 
     def __init__(self, hub, name):
         self.hub, self.name = hub, name

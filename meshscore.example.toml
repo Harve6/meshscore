@@ -51,10 +51,25 @@ channel = "#leafs"
 # priority_teams = ["KIT"]
 # channel = "#ohl"
 
-# [bots.mlb]                   # every MLB postseason game
-# type = "mlb-postseason"
+# [bots.mlb]                   # every MLB postseason game - on its own channel, or add it on a team channel
+# type = "mlb-postseason"      # (e.g. #jays above) so that channel also follows the playoffs when your team is out
 # channel = "#mlb"
-# skip_teams = ["TOR"]         # teams that have their own channel above
+# skip_teams = ["TOR"]         # teams whose own bot already posts their games on this channel
+
+# [bots.market]                # not sports: indices, stocks, commodities, crypto, headlines (docs/market.md)
+# type = "market"
+# channel = "#market"
+# tag = "MKT"
+# watch = ["AAPL", "NVDA", "SHOP.TO"]   # optional: alerts on big moves, and !watch
+
+# [bots.chess]                 # not sports: the whole channel plays one chess game against a bot (docs/chess.md)
+# type = "chess"               # needs: pip install chess
+# channel = "#chess"
+# window_minutes = 5           # the vote clock that starts at the first !move of a round
+# site_dir = "C:/Users/you/meshscore-chess"   # a clone of your GitHub Pages repo: the bot pushes state.json there
+# site_url = "https://YOU.github.io/meshscore-chess/"
+# puzzle_hour = 9              # the daily Lichess puzzle is posted in this hour (puzzle = false turns it off)
+# stockfish = ""               # optional path to a Stockfish binary for the stronger levels
 
 # [plugins]
 # dirs = ["./my_plugins"]

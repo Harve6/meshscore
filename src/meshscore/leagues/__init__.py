@@ -29,7 +29,7 @@ def builtin():
     from .mlb_postseason import PostseasonModule
     from .nfl import NflModule
     from .nhl import NhlModule
-    return {
+    types = {
         "nhl": NhlModule,
         "mlb": MlbModule,
         "nfl": NflModule,
@@ -38,6 +38,19 @@ def builtin():
         "mlb-postseason": PostseasonModule,
         "postseason": PostseasonModule,
     }
+    try:                                         # not sports (indices, stocks, crypto, headlines); never takes the sports bots down
+        from .market import MarketModule
+        types["market"] = MarketModule
+    except Exception:
+        log.exception("The market bot type could not be loaded; sports bots are unaffected")
+    try:                                         # crowd-vs-bot chess; needs `pip install chess` (the [chess] extra)
+        from .chessbot import ChessModule
+        types["chess"] = ChessModule
+    except ImportError:
+        log.debug("The chess bot type needs the python-chess package (pip install chess)")
+    except Exception:
+        log.exception("The chess bot type could not be loaded; the other bots are unaffected")
+    return types
 
 
 def register(type_name, cls):

@@ -11,7 +11,7 @@ from typing import Optional
 
 import requests
 
-from ..core import CFG, DIGEST_GRACE_HOURS, ModeMixin, PhaseMixin, State, _i, fit, fmt_time, now, pack, session, start_first, tzinfo, when
+from ..core import scheduled_in, CFG, DIGEST_GRACE_HOURS, ModeMixin, PhaseMixin, State, _i, fit, fmt_time, now, pack, session, start_first, tzinfo, when
 
 log = logging.getLogger("meshscore")
 
@@ -308,18 +308,28 @@ class NflModule(PhaseMixin, ModeMixin):
         """(play text, ESPN type) of the scoring play that just happened for `team`, or (None, None).  ESPN's play list
         reports the score AFTER the extra point and can trail the scoreboard by a poll, so match on team + 'score has
         reached the scoreboard's' (not equality) and retry briefly."""
+        key, now_pts = ("awayScore", g.ar) if team == g.away else ("homeScore", g.hr)
+        data = None
+
+        def plays(min_score):
+            return [p for p in ((data or {}).get("scoringPlays") or [])
+                    if (p.get("team") or {}).get("abbreviation") == team and _i(p.get(key)) >= min_score]
+
+        def pick(mine):
+            td = [p for p in mine if (p.get("type") or {}).get("abbreviation", "").startswith("TD")]
+            p = (td or mine)[-1]
+            return (p.get("text") or "").strip(), (p.get("type") or {}).get("abbreviation", "")
+
         for attempt in range(NFL_PLAY_TRIES):
             if attempt:
                 await asyncio.sleep(NFL_PLAY_WAIT)
             data = await asyncio.to_thread(espn_get, f"{ESPN_NFL}/summary", {"event": g.id})
-            mine = [p for p in ((data or {}).get("scoringPlays") or [])
-                    if (p.get("team") or {}).get("abbreviation") == team
-                    and _i(p.get("awayScore" if team == g.away else "homeScore")) >= (g.ar if team == g.away else g.hr)]
-            if mine:
-                td = [p for p in mine if (p.get("type") or {}).get("abbreviation", "").startswith("TD")]
-                p = (td or mine)[-1]
-                return (p.get("text") or "").strip(), (p.get("type") or {}).get("abbreviation", "")
-        return None, None
+            if plays(now_pts):
+                return pick(plays(now_pts))
+        # still not there: the list may show the score from before the point-after. Take the team's latest play if it is
+        # within a conversion of the scoreboard (never an older touchdown) rather than posting "TD!" with no play.
+        late = plays(max(now_pts - 2, 1))
+        return pick(late) if late else (None, None)
 
     async def score_event(self, g, team, delta):
         """One scoring alert: scorer + play description from ESPN, the score now, the clock."""
@@ -426,7 +436,7 @@ class NflModule(PhaseMixin, ModeMixin):
         live_s, idle_s = CFG["poll_live_seconds"], CFG["poll_idle_seconds"]
         if any(g.live for g in games):
             return live_s
-        soon = [(g.start - now()).total_seconds() for g in games if g.scheduled and g.start and g.start > now()]
+        soon = scheduled_in(games)
         if soon:
             t = min(soon)
             return live_s if t <= 900 else max(live_s, min(idle_s, t - 600))

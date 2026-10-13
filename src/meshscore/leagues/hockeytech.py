@@ -11,7 +11,7 @@ from typing import Optional
 
 import requests
 
-from ..core import is_admin, CFG, CONFERENCE, DIGEST_GRACE_HOURS, HOCKEY_KINDS, LATE_STARS_WAIT, ModeMixin, PHASE_KEYS, PhaseMixin, SUB_KINDS, State, _i, fit, fmt_day, fmt_time, now, ord_, pack, session, start_first, truthy, tzinfo, when
+from ..core import scheduled_in, is_admin, CFG, CONFERENCE, DIGEST_GRACE_HOURS, HOCKEY_KINDS, LATE_STARS_WAIT, ModeMixin, PHASE_KEYS, PhaseMixin, SUB_KINDS, State, _i, fit, fmt_day, fmt_time, now, ord_, pack, session, start_first, truthy, tzinfo, when
 from ..hub import Event
 
 log = logging.getLogger("meshscore")
@@ -891,7 +891,7 @@ class HockeyTechModule(PhaseMixin, ModeMixin):
         live_s, idle_s = CFG["poll_live_seconds"], CFG["poll_idle_seconds"]
         if any(g.live or g.pregame or g.code == 3 for g in games):
             return live_s
-        soon = [(g.start - now()).total_seconds() for g in games if g.scheduled and g.start and g.start > now()]
+        soon = scheduled_in(games)
         if soon:
             t = min(soon)
             return live_s if t <= 900 else max(live_s, min(idle_s, t - 600))

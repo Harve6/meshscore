@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased
+
+* **Chess bot** (`type = "chess"`): the whole channel plays White in one game against a bot, by voting. The first
+  `!move` of a round starts a 5-minute clock, the most popular move is played, the bot answers, one post per round.
+  Eight levels (a built-in pure-Python engine; optional Stockfish for the upper ones); the bot moves up a level each
+  time the crowd wins. A daily Lichess puzzle (`!puzzle e4`) and a web board: the bot commits `state.json` to a
+  GitHub Pages repo and the bundled `index.html` shows the position, live votes, move list, level ladder and the
+  puzzle. Needs `pip install chess` (the `[chess]` extra). See docs/chess.md.
+* Plugins can list commands in `no_cooldown_cmds` to skip the shared per-channel command cooldown (a vote bot needs
+  every voter's message, not one per 15 seconds).
+
+* **Market bot** (`type = "market"`): indices, stocks, commodities, crypto and business headlines for a `#market`
+  channel - a pre-open brief, a closing recap, index / watchlist / coin move alerts, `!quote` and friends. Built on the
+  plugin API; no API keys. See docs/market.md.
+* **MLB postseason as an option on a team channel**: `meshscore bots add --type mlb --team TOR --channel "#jays"
+  --postseason` (and a question in `init` / `bots add`) adds the postseason bot beside the team bot with `skip_teams`
+  set. Adding a team bot to a channel that already has the postseason bot updates its `skip_teams` automatically.
+* **Cleaner play text**: when an MLB play description does not fit a message, runner moves go first, then the batted-ball
+  clause and fielders' names are shortened, then names become last names - the hit and who scored are kept
+  instead of cutting off mid-word.
+* **Fix: late kickoff / first pitch / puck drop.** A game whose start time had passed but whose feed still said
+  "scheduled" dropped the poll to the idle rate (5 minutes), so the start alert could be minutes late. It now keeps the
+  live rate until the game flips (up to 3 hours).
+* **Fix: channel scan.** All 16 radio slots are read; a channel after four or more empty slots was not found.
+* `bare_command`: a bot can say what `!name` alone answers (the market bot: the index snapshot).
+
 ## 0.1.0 - first public release
 
 MeshScore grew out of a private single-file bot that ran a real mesh's #ohl / #jays / #leafs / #bills channels

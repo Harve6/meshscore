@@ -206,6 +206,16 @@ def fmt_day(dt):
     return f"{dt.strftime('%a %b')} {dt.day}"
 
 
+START_OVERDUE_HOURS = 3   # a game still "scheduled" this long after its start time is stuck, not about to begin
+
+
+def scheduled_in(games):
+    """Seconds until each not-yet-started game's scheduled start. A start time that has already passed (the feed
+    has not flipped to live yet) counts as negative seconds, so callers keep polling fast through kickoff."""
+    cutoff = now() - timedelta(hours=START_OVERDUE_HOURS)
+    return [(g.start - now()).total_seconds() for g in games if g.scheduled and g.start and g.start > cutoff]
+
+
 def when(g):
     if not g.start:
         return "TBD"

@@ -8,9 +8,9 @@ from dataclasses import dataclass
 from datetime import timedelta
 
 
-from ..core import CFG, DIGEST_GRACE_HOURS, ModeMixin, POST_KINDS, State, _i, fit, fmt_day, fmt_time, now, ord_, pack, sched_days, start_first, when
+from ..core import scheduled_in, CFG, DIGEST_GRACE_HOURS, ModeMixin, POST_KINDS, State, _i, fit, fmt_day, fmt_time, now, ord_, pack, sched_days, start_first, when
 from ..hub import Hub
-from .mlb import LEADER_CATS, MlbBase, POST_TYPES, TEAM_ABBR, TEAM_NAMES, dedupe_mgames, last_name, mlb_get, parse_mgame, series_brief, series_line, series_short, short_name, trim_to
+from .mlb import LEADER_CATS, MlbBase, POST_TYPES, TEAM_ABBR, TEAM_NAMES, dedupe_mgames, last_name, mlb_get, parse_mgame, series_brief, series_line, series_short, short_name, trim_to, play_text
 from ..radio import Transport, chan_key
 
 log = logging.getLogger("meshscore")
@@ -546,7 +546,7 @@ class PostseasonModule(MlbBase, ModeMixin):
                     head = f"{tag}: {team} GRAND SLAM!"
                 tail = f" | {score} | {g.inn_txt}".rstrip(" |")
                 room = CFG["max_msg_bytes"] - len(f"⚾ {head} {tail}".encode("utf-8"))
-                evs.append(("run", [f"⚾ {head}{' ' + trim_to(desc, room) if desc and room > 12 else ''}{tail}"], not show))
+                evs.append(("run", [f"⚾ {head}{' ' + play_text(desc, room) if desc and room > 12 else ''}{tail}"], not show))
 
         if prev["state"] == "preview" and g.state == "live" and g.pk not in self.started:
             self.started.add(g.pk)
@@ -673,7 +673,7 @@ class PostseasonModule(MlbBase, ModeMixin):
         live_s, idle_s = CFG["poll_live_seconds"], CFG["poll_idle_seconds"]
         if any(g.live for g in games):
             return live_s
-        soon = [(g.start - now()).total_seconds() for g in games if g.scheduled and g.start and g.start > now()]
+        soon = scheduled_in(games)
         if soon:
             t = min(soon)
             return live_s if t <= 900 else max(live_s, min(idle_s, t - 600))

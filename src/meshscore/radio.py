@@ -126,7 +126,8 @@ class LibTransport(Transport):
             log.warning("Could not load contacts: %s", e)
 
     async def _read_channel_names(self):
-        names, empty = {}, 0
+        # Read every slot: channels can sit after a run of empty slots (e.g. #bills in slot 7 with 4-6 unused).
+        names = {}
         for idx in range(16):
             try:
                 r = await self.mc.commands.get_channel(idx)
@@ -136,11 +137,9 @@ class LibTransport(Transport):
             if r is not None and r.type != self.ET.ERROR:
                 name = str((r.payload or {}).get("channel_name", "")).strip("\x00 ")
             if name:
-                names[idx], empty = name, 0
-            else:
-                empty += 1
-                if names and empty >= 4:
-                    break
+                names[idx] = name
+        log.info("Scanned radio channel slots 0-15, found %d: %s", len(names),
+                 ", ".join(f"{i}={n}" for i, n in names.items()) or "none")
         return names
 
     async def _map_channels(self, channels):

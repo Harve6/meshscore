@@ -28,7 +28,8 @@ dependencies = [
 
 [project.optional-dependencies]
 ble = ["bleak>=0.21"]
-dev = ["pytest>=7", "pytest-cov>=4", "hypothesis>=6", "ruff>=0.4"]
+chess = ["chess>=1.10"]
+dev = ["pytest>=7", "pytest-cov>=4", "hypothesis>=6", "ruff>=0.4", "chess>=1.10"]
 
 [project.scripts]
 meshscore = "meshscore.cli:main"
@@ -39,6 +40,9 @@ Issues = "https://github.com/Harve6/meshscore/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"meshscore.chessplay" = ["site/*", "site/.nojekyll"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

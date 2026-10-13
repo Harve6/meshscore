@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mesh Chess - crowd vs bot</title>
+<style>
+:root {
+  --bg: #f4f1ea; --card: #fffdf8; --ink: #23201b; --muted: #6f685c; --line: #ddd5c5;
+  --light: #ecd9b5; --dark: #a87c52; --hl: #f2d94e88; --check: #e5484d99; --accent: #2f6f4e; --bar: #2f6f4e33;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #17191c; --card: #1f2226; --ink: #ece8df; --muted: #9a9486; --line: #33373d;
+          --light: #c9b790; --dark: #7d5d3c; --hl: #f2d94e77; --accent: #6fcf97; --bar: #6fcf9733; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 1040px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 1.35rem; margin: 4px 0 2px; }
+h2 { font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; font-weight: 600; }
+.sub { color: var(--muted); margin: 0 0 14px; font-size: .92rem; }
+.grid { display: grid; grid-template-columns: minmax(0, 560px) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 760px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+.board { display: grid; grid-template-columns: repeat(8, 1fr); width: 100%; aspect-ratio: 1; border-radius: 4px; overflow: hidden;
+         border: 1px solid var(--line); user-select: none; }
+.sq { position: relative; display: flex; align-items: center; justify-content: center; font-size: clamp(22px, 7.4vw, 52px); line-height: 1; }
+.board.small .sq { font-size: clamp(14px, 4.4vw, 30px); }
+.sq.l { background: var(--light); } .sq.d { background: var(--dark); }
+.sq.hl::after { content: ""; position: absolute; inset: 0; background: var(--hl); }
+.sq.chk::after { content: ""; position: absolute; inset: 0; background: radial-gradient(circle, var(--check) 20%, transparent 75%); }
+.sq .p { position: relative; z-index: 1; }
+.sq .p.w { color: #fff; text-shadow: 0 0 1px #000, 0 0 2px #000, 0 1px 2px #0008; }
+.sq .p.b { color: #121212; text-shadow: 0 0 1px #fff6; }
+.sq .f, .sq .r { position: absolute; font-size: 10px; font-weight: 600; opacity: .7; z-index: 2; }
+.sq .f { right: 3px; bottom: 1px; } .sq .r { left: 3px; top: 1px; }
+.sq.l .f, .sq.l .r { color: var(--dark); } .sq.d .f, .sq.d .r { color: var(--light); }
+.status { margin: 10px 0 0; display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+.pill { background: var(--bar); color: var(--accent); border-radius: 99px; padding: 1px 10px; font-weight: 600; font-size: .85rem; }
+.big { font-size: 1.05rem; font-weight: 600; }
+.how { background: var(--bar); border-radius: 8px; padding: 8px 10px; margin-top: 10px; font-size: .92rem; }
+code { background: var(--bar); padding: 0 5px; border-radius: 4px; font-size: .92em; }
+.votes .row { position: relative; padding: 4px 8px; border-radius: 6px; margin: 3px 0; display: flex; justify-content: space-between; overflow: hidden; }
+.votes .row i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--bar); z-index: 0; }
+.votes .row span { position: relative; z-index: 1; }
+.moves { display: grid; grid-template-columns: 2.4em 1fr 1fr; gap: 1px 8px; max-height: 190px; overflow: auto; font-variant-numeric: tabular-nums; }
+.moves b { color: var(--muted); font-weight: 500; }
+.ladder { display: flex; flex-wrap: wrap; gap: 6px; }
+.ladder span { border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; font-size: .85rem; color: var(--muted); }
+.ladder span.on { background: var(--accent); color: var(--card); border-color: var(--accent); font-weight: 600; }
+.ladder span.done { color: var(--ink); }
+table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+td { padding: 3px 4px; border-bottom: 1px solid var(--line); } td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+.stack > * + * { margin-top: 14px; }
+.warn { background: #e5484d22; border: 1px solid #e5484d66; color: var(--ink); padding: 8px 10px; border-radius: 8px; margin-bottom: 12px; display: none; }
+.puz { display: grid; grid-template-columns: minmax(0, 260px) 1fr; gap: 14px; align-items: start; }
+@media (max-width: 560px) { .puz { grid-template-columns: minmax(0, 1fr); } }
+.muted { color: var(--muted); }
+footer { color: var(--muted); font-size: .85rem; margin: 18px 0 8px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Mesh Chess <span class="muted">- the crowd vs the bot</span></h1>
+  <p class="sub">Everyone on the mesh plays White together by voting. Moves are sent over the radio; this page just watches.</p>
+  <div class="warn" id="warn"></div>
+  <div class="grid">
+    <div class="stack">
+      <div class="card">
+        <div class="board" id="board" role="img" aria-label="chess board"></div>
+        <div class="status">
+          <span class="pill" id="level">-</span>
+          <span class="big" id="turn">Loading...</span>
+          <span class="muted" id="clock"></span>
+        </div>
+        <div class="how">Vote on the mesh channel: <code>!move e4</code> or <code>!move Nf3</code> &middot; <code>!moves</code> lists legal moves &middot; most votes when the clock runs out is played.</div>
+      </div>
+      <div class="card" id="puzcard" hidden>
+        <h2>Daily puzzle</h2>
+        <div class="puz">
+          <div class="board small" id="puzboard"></div>
+          <div>
+            <div class="big" id="puzhead"></div>
+            <p class="muted" id="puzsolved"></p>
+            <p>Answer over the mesh: <code>!puzzle &lt;move&gt;</code> (3 tries). <code>!answer</code> shows the solution.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="card votes"><h2>Votes this round</h2><div id="votes" class="muted">No votes yet</div></div>
+      <div class="card"><h2>Moves</h2><div class="moves" id="moves"></div></div>
+      <div class="card"><h2>Difficulty</h2><div class="ladder" id="ladder"></div>
+        <p class="muted" id="record" style="margin:10px 0 0"></p></div>
+      <div class="card"><h2>Top contributors</h2><table id="players"></table></div>
+      <div class="card"><h2>Last games</h2><div id="history" class="muted">None yet</div></div>
+    </div>
+  </div>
+  <footer>Updated <span id="updated">-</span>. A MeshScore bot; the board refreshes about every minute.</footer>
+</main>
+<script>
+"use strict";
+const GLYPH = {k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟"};
+let state = null;
+
+function fenToGrid(fen) {
+  const rows = fen.split(" ")[0].split("/"), grid = [];
+  for (const row of rows) {
+    const out = [];
+    for (const ch of row) {
+      if (/\d/.test(ch)) for (let i = 0; i < +ch; i++) out.push(null); else out.push(ch);
+    }
+    grid.push(out);
+  }
+  return grid;                                   // grid[0] = rank 8
+}
+function drawBoard(el, fen, opts = {}) {
+  const grid = fenToGrid(fen), flip = !!opts.flip, last = opts.last || [], check = opts.checkColor;
+  el.textContent = "";
+  for (let r = 0; r < 8; r++) {
+    for (let f = 0; f < 8; f++) {
+      const rank = flip ? r : 7 - r, file = flip ? 7 - f : f;           // rank/file index 0..7 (a=0, rank1=0)
+      const name = "abcdefgh"[file] + (rank + 1);
+      const piece = grid[7 - rank][file];
+      const sq = document.createElement("div");
+      sq.className = "sq " + ((file + rank) % 2 ? "l" : "d");
+      if (last.includes(name)) sq.classList.add("hl");
+      if (check && piece && piece.toLowerCase() === "k" && (piece === piece.toUpperCase() ? "w" : "b") === check) sq.classList.add("chk");
+      if (piece) {
+        const s = document.createElement("span");
+        s.className = "p " + (piece === piece.toUpperCase() ? "w" : "b");
+        s.textContent = GLYPH[piece.toLowerCase()] + "︎";
+        sq.appendChild(s);
+      }
+      if (!opts.small) {
+        if (f === 0) { const e = document.createElement("span"); e.className = "r"; e.textContent = rank + 1; sq.appendChild(e); }
+        if (r === 7) { const e = document.createElement("span"); e.className = "f"; e.textContent = "abcdefgh"[file]; sq.appendChild(e); }
+      }
+      el.appendChild(sq);
+    }
+  }
+}
+const $ = id => document.getElementById(id);
+function ago(sec) {
+  if (sec < 90) return "just now";
+  if (sec < 5400) return Math.round(sec / 60) + " min ago";
+  if (sec < 172800) return Math.round(sec / 3600) + " h ago";
+  return Math.round(sec / 86400) + " days ago";
+}
+function render() {
+  if (!state) return;
+  const g = state.game;
+  $("level").textContent = "L" + (g.level + 1) + " " + g.level_name + " (~" + g.elo + ")";
+  drawBoard($("board"), g.fen, {last: g.last || [], checkColor: g.check ? (g.turn === "white" ? "w" : "b") : null});
+  $("turn").textContent = g.turn === "white" ? "Crowd to move (White)" : "Bot is thinking (Black)";
+  // votes
+  const v = $("votes");
+  v.textContent = "";
+  if (!g.votes.length) { v.textContent = "No votes yet - the first vote starts a " + Math.round(state.window_seconds / 60) + " minute clock."; }
+  const max = Math.max(1, ...g.votes.map(x => x.n));
+  for (const x of g.votes) {
+    const row = document.createElement("div"); row.className = "row";
+    const bar = document.createElement("i"); bar.style.width = (100 * x.n / max) + "%";
+    const a = document.createElement("span"); a.textContent = x.san;
+    const b = document.createElement("span"); b.textContent = x.n + (x.n === 1 ? " vote" : " votes");
+    row.append(bar, a, b); v.appendChild(row);
+  }
+  // moves
+  const m = $("moves"); m.textContent = "";
+  const toks = g.moves.slice();
+  // tokens look like "1.e4", "e5", "2.Nf3" ... ("1...c5" if black started)
+  let n = 1, i = 0;
+  while (i < toks.length) {
+    const w = toks[i].replace(/^\d+\.+/, ""), b = toks[i + 1] ? toks[i + 1].replace(/^\d+\.+/, "") : "";
+    const num = document.createElement("b"); num.textContent = n + ".";
+    const wc = document.createElement("span"); wc.textContent = w;
+    const bc = document.createElement("span"); bc.textContent = b;
+    m.append(num, wc, bc); i += 2; n++;
+  }
+  m.scrollTop = m.scrollHeight;
+  if (!toks.length) m.textContent = "No moves yet.";
+  // ladder + record
+  const lad = $("ladder"); lad.textContent = "";
+  state.levels.forEach((l, idx) => {
+    const s = document.createElement("span");
+    s.textContent = "L" + (idx + 1) + " " + l.name;
+    s.className = idx === g.level ? "on" : idx < g.level ? "done" : "";
+    lad.appendChild(s);
+  });
+  const r = state.record;
+  $("record").textContent = "Crowd record: " + r.crowd + " won, " + r.bot + " lost, " + r.draw + " drawn. Beat the bot to climb a level.";
+  // players
+  const pt = $("players"); pt.textContent = "";
+  if (!state.players.length) { const tr = pt.insertRow(); tr.insertCell().textContent = "Nobody yet"; }
+  for (const p of state.players) {
+    const tr = pt.insertRow();
+    tr.insertCell().textContent = p.name;
+    tr.insertCell().textContent = p.moves + " moves" + (p.puzzles ? ", " + p.puzzles + " puzzles" : "");
+  }
+  // history
+  const h = $("history"); h.textContent = "";
+  if (state.history.length) h.className = "";
+  for (const x of state.history) {
+    const d = document.createElement("div");
+    const lvl = state.levels[x.level] ? state.levels[x.level].name : "L" + (x.level + 1);
+    const res = x.result === "crowd" ? "Crowd won" : x.result === "bot" ? "Bot won" : "Draw";
+    d.textContent = "#" + x.id + " vs " + lvl + ": " + res + " (" + x.reason + ")";
+    d.title = x.moves;
+    h.appendChild(d);
+  }
+  // puzzle
+  const pc = $("puzcard");
+  if (state.puzzle) {
+    pc.hidden = false;
+    const p = state.puzzle;
+    drawBoard($("puzboard"), p.fen, {flip: p.side === "black", small: true});
+    $("puzhead").textContent = (p.side === "white" ? "White" : "Black") + " to move - rating " + p.rating;
+    $("puzsolved").textContent = p.solved.length ? "Solved by: " + p.solved.join(", ") : "Nobody has solved it yet.";
+  } else pc.hidden = true;
+  tick();
+}
+function tick() {
+  if (!state) return;
+  const g = state.game, now = Date.now() / 1000;
+  if (g.window_end) {
+    const left = Math.max(0, Math.round(g.window_end - now));
+    $("clock").textContent = "Vote clock " + Math.floor(left / 60) + ":" + String(left % 60).padStart(2, "0");
+  } else $("clock").textContent = "Waiting for the first vote";
+  const age = now - state.updated;
+  $("updated").textContent = ago(Math.max(0, age));
+  const w = $("warn");
+  if (age > 3 * 3600) { w.style.display = "block"; w.textContent = "The bot has not published for " + ago(age) + " - it may be offline."; }
+  else w.style.display = "none";
+}
+async function load() {
+  try {
+    const r = await fetch("state.json?t=" + Date.now(), {cache: "no-store"});
+    if (!r.ok) throw new Error(r.status);
+    state = await r.json();
+    render();
+  } catch (e) {
+    const w = $("warn"); w.style.display = "block";
+    w.textContent = state ? "Could not refresh (will retry)." : "No game data yet - the bot has not published its first board.";
+  }
+}
+load();
+setInterval(load, 15000);
+setInterval(tick, 1000);
+</script>
+</body>
+</html>

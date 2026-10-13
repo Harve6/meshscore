@@ -1,0 +1,56 @@
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">
+<channel>
+<title>MarketWatch.com - MarketPulse</title>
+<description>MarketWatch, a leading publisher of business and financial news, offers users up-to-the minute news, investment tools, and subscription products.</description>
+<link>https://www.marketwatch.com/column/market-pulse</link>
+<language>en-us</language>
+<copyright>Copyright © Dow Jones &amp; Company, Inc. All rights reserved.</copyright>
+<lastBuildDate>Tue, 13 Oct 2026 00:43:45 GMT</lastBuildDate>
+<ttl>60</ttl>
+<image>
+<title>MarketWatch.com - MarketPulse</title>
+<url>https://www.marketwatch.com/rss/marketwatch.gif</url>
+<link>https://www.marketwatch.com/column/market-pulse</link>
+</image>
+<item>
+<guid isPermaLink="false">WP-MKTW-0004302286</guid>
+<title>Jobless claims fall to lowest level since mid-May</title>
+<description />
+<link>https://www.marketwatch.com/story/jobless-claims-fall-to-lowest-level-since-mid-may-bda58e3b?mod=mw_rss_marketpulse</link>
+<pubDate>Thu, 03 Jul 2025 12:36:00 GMT</pubDate>
+<dc:creator>Greg Robb</dc:creator>
+</item>
+<item>
+<guid isPermaLink="false">WP-MKTW-0003986044</guid>
+<title>Jobless claims stay low in latest week</title>
+<description />
+<link>https://www.marketwatch.com/story/jobless-claims-stay-low-in-latest-week-27b4b50b?mod=mw_rss_marketpulse</link>
+<pubDate>Thu, 13 Feb 2025 13:33:00 GMT</pubDate>
+<dc:creator>Greg Robb</dc:creator>
+</item>
+<item>
+<guid isPermaLink="false">WP-MKTW-0003973830</guid>
+<title>Consumer credit growth soars in December</title>
+<description />
+<link>https://www.marketwatch.com/story/consumer-credit-growth-soars-in-december-d405d18e?mod=mw_rss_marketpulse</link>
+<pubDate>Fri, 07 Feb 2025 20:26:00 GMT</pubDate>
+<dc:creator>Greg Robb</dc:creator>
+</item>
+<item>
+<guid isPermaLink="false">WP-MKTW-0003968586</guid>
+<title>U.S. productivity slows down in fourth quarter while unit labor costs accelerate</title>
+<description />
+<link>https://www.marketwatch.com/story/u-s-productivity-slows-down-in-fourth-quarter-while-unit-labor-costs-accelerate-3c2b9092?mod=mw_rss_marketpulse</link>
+<pubDate>Thu, 06 Feb 2025 13:34:00 GMT</pubDate>
+<dc:creator>Greg Robb</dc:creator>
+</item>
+<item>
+<guid isPermaLink="false">WP-MKTW-0003957993</guid>
+<title>Beyond to buy rights to Buy Buy Baby brand and reunite it with Bed Bath &amp; Beyond</title>
+<description />
+<link>https://www.marketwatch.com/story/beyond-to-buy-rights-to-buy-buy-baby-brand-and-reunite-it-with-bed-bath-beyond-4383c6be?mod=mw_rss_marketpulse</link>
+<pubDate>Mon, 03 Feb 2025 13:46:00 GMT</pubDate>
+<dc:creator>Ciara Linnane</dc:creator>
+</item>
+</channel>
+</rss>

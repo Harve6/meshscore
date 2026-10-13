@@ -12,7 +12,7 @@ from typing import Optional
 
 import requests
 
-from ..core import BASEBALL_KINDS, CFG, DIGEST_GRACE_HOURS, ModeMixin, PhaseMixin, State, _i, fit, now, ord_, pack, sched_days, session, start_first, tzinfo, when
+from ..core import scheduled_in, BASEBALL_KINDS, CFG, DIGEST_GRACE_HOURS, ModeMixin, PhaseMixin, State, _i, fit, now, ord_, pack, sched_days, session, start_first, tzinfo, when
 
 log = logging.getLogger("meshscore")
 
@@ -49,6 +49,66 @@ def trim_to(text, nbytes):
     if len(text.encode("utf-8")) <= nbytes:
         return text
     return text.encode("utf-8")[: max(nbytes - 3, 0)].decode("utf-8", errors="ignore").rstrip() + "..."
+
+
+# ---- play descriptions: keep what matters (the hit, who scored) when the full text will not fit a message ----
+_CAP = "A-ZÀ-ÖØ-Þ"
+_WORD = rf"(?!(?:Jr|Sr)\b)[{_CAP}][\w'’\-]*"
+_NAME = rf"(?:(?:[{_CAP}]\.)+|{_WORD})(?: (?:(?:[{_CAP}]\.)+|{_WORD})){{0,3}}(?: (?:Jr|Sr)\.)?"
+_POSITIONS = {"left fielder": "LF", "center fielder": "CF", "right fielder": "RF", "first baseman": "1B",
+              "second baseman": "2B", "third baseman": "3B", "shortstop": "SS", "pitcher": "P", "catcher": "C"}
+_FIELDER = re.compile(rf"\b(left fielder|center fielder|right fielder|first baseman|second baseman|third baseman|"
+                      rf"shortstop|pitcher|catcher) {_NAME}")
+_BATTED = re.compile(r" on an? (?:[a-z-]+ )*?(?:line drive|fly ball|ground ball|pop up|popup|bunt|grounder|"
+                     r"ground-rule)(?: [a-z]+)?(?= to |\.|,)")
+_BATTER = re.compile(rf"^({_NAME}) (?=singles|doubles|triples|homers|walks|intentionally|is hit|hit |grounds|flies|"
+                     rf"lines|pops|strikes|reaches|bunts|sacrifice|reaches|called|safe|out)")
+_RUNNER = re.compile(rf"^({_NAME})(?= (?:scores|to [123](?:st|nd|rd)|advances|steals|out at|thrown out))")
+_REVIEW = re.compile(r"^[^:]{0,110}\b(?:challenge[sd]?|review(?:ed)?|overturned|upheld|stands)\b[^:]{0,70}:\s+", re.I)
+_WHERE = re.compile(r" to (?:(?:deep )?(?:left|right|center)(?: center)? field|LF|CF|RF|1B|2B|3B|SS|P|C)(?=[.,]| |$)")
+_MOVE = re.compile(r"\b(?:to (?:1st|2nd|3rd)|advances to (?:1st|2nd|3rd)|steals (?:2nd|3rd))\b")
+_INITIALS = re.compile(rf"(?:^|\s)(?:[{_CAP}]\.)+$|\b(?:Jr|Sr)\.$")
+
+
+def _sentences(text):
+    out, start = [], 0
+    for m in re.finditer(rf"(?<=[.!?])\s+(?=[{_CAP}])", text):
+        if _INITIALS.search(text[start:m.start()]):
+            continue                      # "Bobby Witt Jr." / "J.T." is not the end of a sentence
+        out.append(text[start:m.start()])
+        start = m.end()
+    out.append(text[start:])
+    return [s for s in out if s]
+
+
+def play_text(desc, nbytes):
+    """MLB's play description cut to nbytes without losing the point of it. The full text is used when it fits;
+    otherwise, in this order: drop 'X to 2nd.' runner moves, shorten 'on a line drive to left fielder Name',
+    fielders to positions, names to last names, then whole trailing sentences, and only then cut mid-text."""
+    text = " ".join(str(desc or "").split())
+    if len(text.encode("utf-8")) <= nbytes:
+        return text
+    try:
+        sents = _sentences(text)
+        first, rest = sents[0], sents[1:]
+        steps = (
+            lambda f, r: (_REVIEW.sub("", f), r),
+            lambda f, r: (f, [s for s in r if not (_MOVE.search(s) and "scores" not in s and " out" not in s)]),
+            lambda f, r: (_BATTED.sub("", f), r),
+            lambda f, r: (_FIELDER.sub(lambda m: _POSITIONS[m.group(1)], f), [_FIELDER.sub(lambda m: _POSITIONS[m.group(1)], s) for s in r]),
+            lambda f, r: (_BATTER.sub(lambda m: last_name(m.group(1)) + " ", f), [_RUNNER.sub(lambda m: last_name(m.group(1)), s) for s in r]),
+            lambda f, r: (_WHERE.sub("", f), r),
+        )
+        for step in steps:
+            first, rest = step(first, rest)
+            joined = " ".join([first] + rest)
+            if len(joined.encode("utf-8")) <= nbytes:
+                return joined
+        while rest and len(" ".join([first] + rest).encode("utf-8")) > nbytes:
+            rest.pop()                    # losing the last runner beats losing the end of a word
+        return trim_to(" ".join([first] + rest), nbytes)
+    except Exception:
+        return trim_to(text, nbytes)
 
 
 @dataclass
@@ -385,7 +445,7 @@ class MlbBase:
     def follow_dm(self, info, head, desc, score, inn):
         tail = f" | {score} | {inn}"
         room = CFG["max_msg_bytes"] - len(f"{head} {tail}".encode("utf-8"))
-        text = f"{head} {trim_to(desc, room)}{tail}" if desc and room > 12 else f"{head}{tail}"
+        text = f"{head} {play_text(desc, room)}{tail}" if desc and room > 12 else f"{head}{tail}"
         for key in info["keys"]:
             self.hub.say_dm(key, text)
 
@@ -664,7 +724,7 @@ class MlbModule(MlbBase, PhaseMixin, ModeMixin):
             tail = f" | {score} | {g.inn_txt}".rstrip(" |")
             desc = await self.scoring_play(g) if n else None
             room = CFG["max_msg_bytes"] - len(f"⚾ {head} {tail}".encode("utf-8"))
-            evs.append(("run", [f"⚾ {head}{' ' + trim_to(desc, room) if desc and room > 12 else ''}{tail}"]))
+            evs.append(("run", [f"⚾ {head}{' ' + play_text(desc, room) if desc and room > 12 else ''}{tail}"]))
 
         sent = self.thirds.setdefault(g.pk, set())
         if g.live and not g.delayed:                     # "min": the score after 3 and after 6 innings
@@ -829,7 +889,7 @@ class MlbModule(MlbBase, PhaseMixin, ModeMixin):
         live_s, idle_s = CFG["poll_live_seconds"], CFG["poll_idle_seconds"]
         if any(g.live for g in games):
             return live_s
-        soon = [(g.start - now()).total_seconds() for g in games if g.scheduled and g.start and g.start > now()]
+        soon = scheduled_in(games)
         if soon:
             t = min(soon)
             return live_s if t <= 900 else max(live_s, min(idle_s, t - 600))

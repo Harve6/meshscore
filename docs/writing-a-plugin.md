@@ -59,7 +59,9 @@ channel = "#coin"
 | `kinds` | `{"max": {...}, "min": {...}, "off": set()}` - which alert kinds each level sends |
 | `extra_commands()` | `{"!cmd": async fn(inc, arg) -> [replies]}`; `inc.sender_name`, `inc.is_dm`, `inc.rest` (all words after the command) |
 | `arg_cmds` | commands whose *argument* matters for the cooldown (e.g. `("!team",)`) |
+| `no_cooldown_cmds` | commands that skip the shared per-channel cooldown (votes, where every sender must count) - limit abuse yourself |
 | `help_text()` | the text after `[TAG BOT]` in `!help` |
+| `bare_command` | what `!name` on its own answers with (default `"!help"`) |
 | `self.mark_ok()` | call after each successful fetch (feeds `!botstatus`) |
 | `CFG`, `fit`, `pack` | `from meshscore.plugin import CFG, fit, pack` - settings; `fit(text)` trims to the byte limit, `pack(header, items)` packs items into as few messages as fit |
 

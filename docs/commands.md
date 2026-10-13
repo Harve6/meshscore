@@ -31,6 +31,12 @@ team's series first; `!playoffs` / `!bracket` are the same)
 `!scores` · `!series [al|nl|wc|ds|cs|ws]` · `!bracket` · `!ws` · `!next` · `!yesterday` · `!pitchers` · `!team X` ·
 `!leaders` · `!player` · `!follow` ...
 
+## Markets (`type = "market"`)
+
+`!market` (the indices) · `!quote SYMBOL` (`AAPL`, `SHOP.TO`, `^GSPC`, `gold`, `btc` ...) · `!gainers` · `!losers` ·
+`!active` · `!crypto [BTC ETH]` · `!commodities` / `!gold` / `!oil` ... · `!fx [USDCAD]` · `!news` · `!watch` ·
+`!brief` · `!about` - details in [market.md](market.md)
+
 ## NFL (`type = "nfl"`)
 
 `!score` · `!next` · `!last` · `!standings [afc|nfc]` · `!bracket [wc|div|conf|sb]` (`!playoffs` is the same)
