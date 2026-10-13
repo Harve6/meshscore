@@ -29,8 +29,9 @@ dependencies = [
 [project.optional-dependencies]
 ble = ["bleak>=0.21"]
 chess = ["chess>=1.10"]
-pokemon = ["pyboy>=2.4", "pillow>=10"]
-dev = ["pytest>=7", "pytest-cov>=4", "hypothesis>=6", "ruff>=0.4", "chess>=1.10"]
+pokemon = ["pyboy>=2.4", "pillow>=10", "segno>=1.5"]
+qr = ["segno>=1.5"]
+dev = ["pytest>=7", "pytest-cov>=4", "hypothesis>=6", "ruff>=0.4", "chess>=1.10", "segno>=1.5"]
 
 [project.scripts]
 meshscore = "meshscore.cli:main"

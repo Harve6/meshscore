@@ -52,9 +52,9 @@ code { background: var(--bar); padding: 0 5px; border-radius: 4px; font-size: .9
 table { width: 100%; border-collapse: collapse; font-size: .92rem; }
 td { padding: 3px 4px; border-bottom: 1px solid var(--line); } td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
 .stack > * + * { margin-top: 14px; }
-.contact { display: grid; grid-template-columns: 148px 1fr; gap: 12px; align-items: start; }
-.qr { background: #fff; padding: 8px; border-radius: 6px; width: 148px; height: 148px; }
-.qr img, .qr canvas { display: block; width: 132px !important; height: 132px !important; }
+.contact { display: grid; grid-template-columns: 176px 1fr; gap: 12px; align-items: start; }
+.qr { background: #fff; padding: 6px; border-radius: 6px; width: 176px; height: 176px; }
+.qr svg, .qr img, .qr canvas { display: block; width: 100% !important; height: 100% !important; }
 #curi { word-break: break-all; font-size: .72rem; }
 @media (max-width: 420px) { .contact { grid-template-columns: minmax(0, 1fr); } }
 .warn { background: #e5484d22; border: 1px solid #e5484d66; color: var(--ink); padding: 8px 10px; border-radius: 8px; margin-bottom: 12px; display: none; }
@@ -251,11 +251,12 @@ function render() {
 }
 let qrFor = "";
 let chFor = "";
-function setQR(box, text) {
+function showQR(box, card) {
   box.textContent = "";
+  if (card.svg) { box.innerHTML = card.svg; return; }          // made by the bot: the same for everybody
   if (!window.QRCode) return;
-  try { new QRCode(box, {text: text, width: 132, height: 132, colorDark: "#000000", colorLight: "#ffffff",
-                        correctLevel: QRCode.CorrectLevel.L}); } catch (e) { box.textContent = ""; }
+  try { new QRCode(box, {text: card.uri, width: 132, height: 132, colorDark: "#000000", colorLight: "#ffffff",
+                        correctLevel: QRCode.CorrectLevel.M}); } catch (e) { box.textContent = ""; }
 }
 function renderChannel() {
   const ch = state.channel, card = $("chancard");
@@ -269,7 +270,7 @@ function renderChannel() {
   const a = $("churi");
   if (ch.uri) {
     a.hidden = false; a.href = ch.uri; a.textContent = ch.uri.length > 70 ? ch.uri.slice(0, 66) + "..." : ch.uri;
-    if (chFor !== ch.uri) { chFor = ch.uri; setQR($("chqr"), ch.uri); }
+    if (chFor !== ch.uri + (ch.svg ? 1 : 0)) { chFor = ch.uri + (ch.svg ? 1 : 0); showQR($("chqr"), ch); }
     $("chqr").style.display = "";
   } else { a.hidden = true; $("chqr").style.display = "none"; }
 }
@@ -278,12 +279,7 @@ function renderContact() {
   if (!c || !c.uri) { card.hidden = true; return; }
   card.hidden = false;
   const a = $("curi"); a.href = c.uri; a.textContent = c.uri.length > 70 ? c.uri.slice(0, 66) + "..." : c.uri;
-  if (qrFor !== c.uri && window.QRCode) {
-    qrFor = c.uri;
-    const q = $("qr"); q.textContent = "";
-    try { new QRCode(q, {text: c.uri, width: 132, height: 132, colorDark: "#000000", colorLight: "#ffffff",
-                          correctLevel: QRCode.CorrectLevel.L}); } catch (e) { q.textContent = ""; }
-  }
+  if (qrFor !== c.uri + (c.svg ? 1 : 0)) { qrFor = c.uri + (c.svg ? 1 : 0); showQR($("qr"), c); }
 }
 function tick() {
   if (!state) return;

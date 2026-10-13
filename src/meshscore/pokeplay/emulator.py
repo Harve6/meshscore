@@ -16,7 +16,7 @@ ALIASES = {"u": "up", "d": "down", "l": "left", "r": "right", "sel": "select", "
 BOOT_FRAMES = 1500          # a fresh game is fast-forwarded through the logos to the title / intro
 WALK_FRAMES = 16            # holding a direction this long moves one tile
 TAP_FRAMES = 6
-SETTLE_FRAMES = 24          # let the animation / text box finish before looking
+SETTLE_FRAMES = 60          # let fades, text printing and animations finish before looking (1 s of game time)
 
 
 def norm_button(word: str) -> str | None:
@@ -38,6 +38,8 @@ class GameBoy:
             self.species_names = ram.species_names_from_rom(f.read())
         self.pb = PyBoy(rom_path, window="null", sound_emulated=False)
         self.pb.set_emulation_speed(0)
+        self.title = str(getattr(self.pb, "cartridge_title", "") or "")
+        self.layout = ram.layout_for_title(self.title)          # Yellow keeps its variables one byte lower
         self.resumed = False
         if state_path and os.path.isfile(state_path):
             try:
@@ -91,7 +93,10 @@ class FakeGameBoy:
         self.ram: dict[int, int] = {}
         self.script = script or {}
         self.presses: list[tuple[str, int]] = []
+        from . import ram
         self.species_names = ["?"] + [f"MON{i}" for i in range(1, 191)]
+        self.title = "POKEMON RED"
+        self.layout = ram.RED_BLUE
         self.state_path = state_path
         self.saves = 0
         self.closed = False

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+* **Pokemon: Red, Blue and Yellow with a daily game vote.** `[bots.pokemon.roms]` lists several ROMs; each keeps its own
+  save, and once a day the channel votes (`!game blue`) which one to play. Yellow's different memory layout is
+  handled (verified against the real ROMs). `!switch` for admins. The page shows the game and the live vote.
+* **Join QR codes are drawn by the bot** (an SVG built with `segno`, `pip install segno`) instead of in the visitor's
+  browser: crisper, bigger, and verified with an independent decoder. The old script remains as a fallback.
+* Pokemon page can be hosted on a Cloudflare Worker (`site_api` / `site_token`, contrib/cloudflare-board).
 * **Pokemon Red bot** (`type = "pokemon"`): the whole channel plays one game. The first button vote of a round starts a
   30-second clock, the most popular button is pressed in a headless PyBoy emulator, and the screen goes to a web page
   (the screenshot repo is amended and force-pushed so it never bloats). The channel hears events read from the game's

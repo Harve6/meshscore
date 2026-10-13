@@ -311,6 +311,21 @@ def is_admin(inc):
     return bool(inc.is_dm and inc.sender_key and any(inc.sender_key.lower().startswith(k) for k in keys))
 
 
+def is_strict_admin(inc):
+    """Like is_admin, but for commands that destroy progress (reset a game, switch a game): with no admin_names /
+    admin_keys configured NOBODY is an admin, rather than everybody."""
+    if not (CFG.get("admin_names") or CFG.get("admin_keys")):
+        return False
+    return is_admin(inc)
+
+
+def admin_refusal(what):
+    """The reply to someone who may not use an admin-only command."""
+    if not (CFG.get("admin_names") or CFG.get("admin_keys")):
+        return "Admin commands are off: set admin_keys (or admin_names) in meshscore.toml [bot]"
+    return f"Only admins can {what}."
+
+
 class PhaseMixin:
     """Lets a sport ignore preseason / regular season / playoff games. Subclasses define game_phase(g)."""
     has_phases = True

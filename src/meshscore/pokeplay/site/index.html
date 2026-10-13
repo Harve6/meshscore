@@ -42,9 +42,9 @@ table { width: 100%; border-collapse: collapse; font-size: .92rem; }
 td { padding: 3px 4px; border-bottom: 1px solid var(--line); } td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
 ul.ev { list-style: none; margin: 0; padding: 0; } ul.ev li { padding: 3px 0; border-bottom: 1px solid var(--line); }
 .warn { background: #e5484d22; border: 1px solid #e5484d66; padding: 8px 10px; border-radius: 8px; margin-bottom: 12px; display: none; }
-.contact { display: grid; grid-template-columns: 148px 1fr; gap: 12px; align-items: start; }
-.qr { background: #fff; padding: 8px; border-radius: 6px; width: 148px; height: 148px; }
-.qr img, .qr canvas { display: block; width: 132px !important; height: 132px !important; }
+.contact { display: grid; grid-template-columns: 176px 1fr; gap: 12px; align-items: start; }
+.qr { background: #fff; padding: 6px; border-radius: 6px; width: 176px; height: 176px; }
+.qr svg, .qr img, .qr canvas { display: block; width: 100% !important; height: 100% !important; }
 .uri { word-break: break-all; font-size: .72rem; }
 @media (max-width: 420px) { .contact { grid-template-columns: minmax(0, 1fr); } }
 footer { color: var(--muted); font-size: .85rem; margin: 18px 0 8px; }
@@ -52,7 +52,7 @@ footer { color: var(--muted); font-size: .85rem; margin: 18px 0 8px; }
 </head>
 <body>
 <main>
-  <h1>Mesh Plays Pokemon <span class="muted">- Red Version</span></h1>
+  <h1>Mesh Plays Pokemon <span class="muted" id="gname"></span></h1>
   <p class="sub">One game, everyone on the mesh channel at once. Send a button over the radio; the most popular one is pressed.</p>
   <div class="warn" id="warn"></div>
   <div class="grid">
@@ -92,6 +92,11 @@ footer { color: var(--muted); font-size: .85rem; margin: 18px 0 8px; }
       </div>
     </div>
     <div class="stack">
+      <div class="card votes" id="ballotcard" hidden>
+        <h2>Daily game vote</h2>
+        <div id="ballot"></div>
+        <p class="muted" style="margin:6px 0 0" id="ballotnote"></p>
+      </div>
       <div class="card votes"><h2>Votes this round</h2><div id="votes" class="muted">No votes yet</div></div>
       <div class="card"><h2>Party</h2><div id="party" class="muted">No Pokemon yet</div>
         <p class="muted" id="facts" style="margin:8px 0 0"></p></div>
@@ -113,11 +118,12 @@ function ago(sec) {
   if (sec < 172800) return Math.round(sec / 3600) + " h ago";
   return Math.round(sec / 86400) + " days ago";
 }
-function setQR(box, text) {
+function showQR(box, card) {
   box.textContent = "";
+  if (card.svg) { box.innerHTML = card.svg; return; }          // made by the bot: the same for everybody
   if (!window.QRCode) return;
-  try { new QRCode(box, {text: text, width: 132, height: 132, colorDark: "#000000", colorLight: "#ffffff",
-                        correctLevel: QRCode.CorrectLevel.L}); } catch (e) { box.textContent = ""; }
+  try { new QRCode(box, {text: card.uri, width: 132, height: 132, colorDark: "#000000", colorLight: "#ffffff",
+                        correctLevel: QRCode.CorrectLevel.M}); } catch (e) { box.textContent = ""; }
 }
 let chFor = "", ctFor = "";
 function cards() {
@@ -128,13 +134,13 @@ function cards() {
       ? "Or by hand: add a hashtag channel named " + ch.name.slice(1) + " (no password needed)." : "";
     const a = $("churi");
     if (ch.uri) { a.hidden = false; a.href = ch.uri; a.textContent = ch.uri.slice(0, 66) + "...";
-      if (chFor !== ch.uri) { chFor = ch.uri; setQR($("chqr"), ch.uri); } $("chqr").style.display = ""; }
+      if (chFor !== ch.uri + (ch.svg ? 1 : 0)) { chFor = ch.uri + (ch.svg ? 1 : 0); showQR($("chqr"), ch); } $("chqr").style.display = ""; }
     else { a.hidden = true; $("chqr").style.display = "none"; }
   } else cc.hidden = true;
   const c = state.contact, ct = $("contactcard");
   if (c && c.uri) {
     ct.hidden = false; const a = $("curi"); a.href = c.uri; a.textContent = c.uri.slice(0, 66) + "...";
-    if (ctFor !== c.uri) { ctFor = c.uri; setQR($("qr"), c.uri); }
+    if (ctFor !== c.uri + (c.svg ? 1 : 0)) { ctFor = c.uri + (c.svg ? 1 : 0); showQR($("qr"), c); }
   } else ct.hidden = true;
 }
 function render() {
@@ -142,6 +148,9 @@ function render() {
   $("screen").src = "screen.png?t=" + s.updated;
   $("loc").textContent = st && st.started ? st.map_name : "Title screen";
   $("round").textContent = "Round " + s.round;
+  $("gname").textContent = s.game && s.game.title ? "- " + s.game.title.replace(/^Pokemon /, "") + " Version" : "";
+  document.title = "Mesh Plays " + (s.game && s.game.title ? s.game.title : "Pokemon");
+  ballot();
   const v = $("votes"); v.textContent = "";
   if (!s.votes.length) v.textContent = "No votes yet - the first one starts a " + s.window_seconds + " second clock.";
   const max = Math.max(1, ...s.votes.map(x => x.n));
@@ -178,11 +187,33 @@ function render() {
   cards();
   tick();
 }
+function ballot() {
+  const s = state, g = s.game || {}, card = $("ballotcard");
+  if (!g.options || g.options.length < 2) { card.hidden = true; return; }
+  card.hidden = false;
+  const box = $("ballot"); box.textContent = "";
+  const b = s.ballot, tally = {};
+  if (b) for (const v of b.votes) tally[v.game] = v.n;
+  const max = Math.max(1, ...Object.values(tally));
+  for (const o of g.options) {
+    const row = document.createElement("div"); row.className = "row";
+    const bar = document.createElement("i"); bar.style.width = (b ? 100 * (tally[o.key] || 0) / max : 0) + "%";
+    const a = document.createElement("span"); a.textContent = o.title + (o.key === g.active ? "  (playing)" : "");
+    const n = document.createElement("span"); n.textContent = b ? (tally[o.key] || 0) + " votes" : "";
+    row.append(bar, a, n); box.appendChild(row);
+  }
+  $("ballotnote").textContent = b
+    ? "Vote open: send !game " + g.options.map(o => o.key).join(" / ") + " on the channel."
+    : "A vote opens every day at " + g.vote_hour + ":00 - the winner is played until the next one.";
+}
 function tick() {
   if (!state) return;
   const now = Date.now() / 1000, we = state.window_end;
   if (we) { const left = Math.max(0, Math.round(we - now)); $("clock").textContent = "Vote clock 0:" + String(left).padStart(2, "0"); }
   else $("clock").textContent = "Waiting for the first vote";
+  if (state.ballot) { const left = Math.max(0, Math.round(state.ballot.end - now));
+    $("ballotnote").textContent = "Vote open for " + Math.floor(left / 60) + " more min: send !game "
+      + state.game.options.map(o => o.key).join(" / ") + " on the channel."; }
   const age = now - state.updated;
   $("updated").textContent = ago(Math.max(0, age));
   const w = $("warn");

@@ -1,6 +1,6 @@
-# Pokemon Red: the whole channel plays one game
+# Pokemon Red / Blue / Yellow: the whole channel plays one game
 
-Everybody on a channel plays **one** copy of Pokemon Red together. Send a button; the most popular one is pressed in
+Everybody on a channel plays **one** copy of Pokemon together (Red, Blue or Yellow). Send a button; the most popular one is pressed in
 a headless Game Boy emulator, the game is saved, and a web page shows the screen. The channel itself only hears
 about things that matter: a new area, a battle, a level up, a badge.
 
@@ -13,7 +13,7 @@ about things that matter: a new area, a battle, a level up, a badge.
  #pokemon:  ⬆ CHARMANDER is now L6!
 ```
 
-**You must supply your own legally obtained ROM** (Pokemon Red, US/Europe). MeshScore does not include or download
+**You must supply your own legally obtained ROMs** (Pokemon Red / Blue / Yellow, US/Europe). MeshScore does not include or download
 one, and the ROM and save states must never be committed to a public repo (`*.gb`, `*.state` are git-ignored).
 
 ## Set it up
@@ -36,7 +36,11 @@ Create the channel in the MeshCore app first, then restart MeshScore.
 
 | `[bots.pokemon]` setting | default | |
 |---|---|---|
-| `rom` | | path to your Pokemon Red ROM (required) |
+| `rom` | | path to your ROM (one game), **or** a `[bots.pokemon.roms]` table for several (below) |
+| `game` | first one | which game to start on when there are several |
+| `vote_hour` | `9` | local hour the daily "which game" vote opens (only several ROMs) |
+| `ballot_minutes` | `60` | how long that vote stays open |
+| `site_api`, `site_token` | | host the page on a Cloudflare Worker instead (contrib/cloudflare-board) |
 | `window_seconds` | `30` | the vote clock; it starts at the **first** vote of a round |
 | `steps` | `3` | tiles a d-pad vote walks (people can ask for 1-8: `!up 5`) |
 | `post_every` | `0` | also post a status line every N rounds (0 = events only) |
@@ -54,13 +58,36 @@ Create the channel in the MeshCore app first, then restart MeshScore.
 | `!a` `!b` `!start` `!select` | the buttons |
 | `!press <button> [n]` | the long form (`!p` for short) |
 | `!where` (or just `!pokemon`) | where you are, the lead Pokemon, badges, Pokedex |
+| `!game` / `!game blue` | which game is being played / vote for it while the daily vote is open |
+| `!switch <game>` | admins: change game right now (each game keeps its own save) |
+| `!reset [game] confirm` | admins: wipe the running game - or the named one - back to the title screen |
 | `!party` | the whole party with HP |
 | `!votes` | the current tally and time left |
 | `!top` | who has had the most presses chosen |
-| `!reset confirm` | admins: wipe the save and start from the title screen |
 | `!mode max\|min\|off` | `min` = badges, new Pokemon and evolutions only |
 
 Vote by DM with `!pokemon up 3` - a DM never touches the channel.
+
+**Admin commands** (`!switch`, `!reset`, and chess's `!newgame`) destroy progress, so they are *off* until you name an admin in `meshscore.toml`: `[bot] admin_keys = ["ab12cd"]` (the start of your public key - authenticated, so use them by DM: `!pokemon reset confirm`) or `admin_names` (a name on a public channel can be faked).
+
+## Several games and the daily vote
+
+Give the bot more than one ROM:
+
+```toml
+[bots.pokemon]
+type = "pokemon"
+channel = "#pokemon"
+
+[bots.pokemon.roms]
+red = "C:/roms/Pokemon Red.gb"
+blue = "C:/roms/Pokemon Blue.gb"
+yellow = "C:/roms/Pokemon Yellow.gb"
+```
+
+Each game keeps **its own save** (`pokemon-red.state`, `pokemon-blue.state` ...), so nothing is lost when the channel changes game. Every day in the `vote_hour` hour the bot posts one message and opens a vote (`!game blue`, a unique start of the name works: `!game y`); an hour later (`ballot_minutes`) the winner is loaded and played until the next vote. No votes, or the same game winning, changes nothing. A bot that was down at vote time doesn't open a late vote, and a result that came due while it was down is applied quietly.
+
+An existing single-ROM save (`pokemon.state`) is picked up as Red. Yellow keeps its variables one byte lower in memory than Red/Blue; the bot chooses the right layout from the cartridge header.
 
 ## How a round works
 

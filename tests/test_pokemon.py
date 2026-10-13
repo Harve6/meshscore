@@ -174,8 +174,8 @@ class Rig:
                 if self.hub.cmdq.empty() and self.hub.out.empty():
                     return
 
-    async def say(self, text, name="Ann", dm=False):
-        await self.hub.on_message(Incoming(text, dm, name, ("k" + name.lower() * 8) if dm else "", 1, 5.0,
+    async def say(self, text, name="Ann", dm=False, key=""):
+        await self.hub.on_message(Incoming(text, dm, name, key or (("k" + name.lower() * 8) if dm else ""), 1, 5.0,
                                            "" if dm else "pokemon"))
         await self.settle()
 

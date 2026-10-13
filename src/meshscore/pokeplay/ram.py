@@ -1,4 +1,5 @@
-"""What the game's memory says (Pokemon Red/Blue, US/EU). Addresses from the community pokered disassembly.
+"""What the game's memory says (Pokemon Red / Blue / Yellow, US/EU). Addresses from the community pokered / pokeyellow
+disassemblies, checked against the real ROMs (map, money, party species/HP/level, Pokedex).
 
 Everything works on an object with ``read(addr) -> int`` so it can be tested without an emulator or a ROM. Species
 names are read out of the ROM itself (MonsterNames), so no copyrighted text is shipped with MeshScore.
@@ -7,23 +8,44 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-# ---- addresses (WRAM)
-ADDR_PLAYER_NAME = 0xD158          # 11 bytes, game text
-ADDR_PARTY_COUNT = 0xD163
-ADDR_PARTY_MONS = 0xD16B           # 6 x 44 bytes
-ADDR_PARTY_NICKS = 0xD2B5          # 6 x 11 bytes
-ADDR_MAP = 0xD35E
-ADDR_Y, ADDR_X = 0xD361, 0xD362
-ADDR_BADGES = 0xD356               # one bit per badge
-ADDR_MONEY = 0xD347                # 3 bytes BCD
-ADDR_IN_BATTLE = 0xD057            # 0 none, 1 wild, 2 trainer, 0xFF lost
-ADDR_DEX_OWNED = 0xD2F7            # 19 bytes of bits
-ADDR_DEX_SEEN = 0xD30A
+
+@dataclass(frozen=True)
+class Layout:
+    """Where things live in WRAM for one version of the game."""
+    name: str
+    player_name: int
+    party_count: int
+    party_mons: int            # 6 x 44 bytes
+    party_nicks: int           # 6 x 11 bytes
+    map_id: int
+    y: int
+    x: int
+    badges: int                # one bit per badge
+    money: int                 # 3 bytes BCD
+    in_battle: int             # 0 none, 1 wild, 2 trainer, 0xFF lost
+    dex_owned: int             # 19 bytes of bits
+    dex_seen: int
+
+
+RED_BLUE = Layout("red/blue", player_name=0xD158, party_count=0xD163, party_mons=0xD16B, party_nicks=0xD2B5,
+                  map_id=0xD35E, y=0xD361, x=0xD362, badges=0xD356, money=0xD347, in_battle=0xD057,
+                  dex_owned=0xD2F7, dex_seen=0xD30A)
+# Yellow's WRAM is the same table shifted down one byte in this region (verified: map, money, party on the real ROM).
+YELLOW = Layout("yellow", player_name=0xD157, party_count=0xD162, party_mons=0xD16A, party_nicks=0xD2B4,
+                map_id=0xD35D, y=0xD360, x=0xD361, badges=0xD355, money=0xD346, in_battle=0xD056,
+                dex_owned=0xD2F6, dex_seen=0xD309)
+
 MON_SIZE, NICK_SIZE = 44, 11
 OFF_SPECIES, OFF_HP, OFF_LEVEL, OFF_MAXHP = 0, 1, 0x21, 0x22
 
+
+def layout_for_title(title: str) -> Layout:
+    """The cartridge header title ('POKEMON RED', 'POKEMON YELLOW' ...) -> memory layout."""
+    return YELLOW if "YELLOW" in (title or "").upper() else RED_BLUE
+
+
 # ---- ROM: MonsterNames, 190 entries of 10 bytes, internal-index order (1 = Rhydon)
-ROM_MONSTER_NAMES = 0x1C21E
+ROM_MONSTER_NAMES = 0x1C21E          # Red / Blue (US/EU); Yellow keeps it elsewhere - found by searching
 MONSTER_COUNT = 190
 
 _CHARS = {0x7F: " ", 0xE3: "-", 0xE8: ".", 0xE7: "!", 0xE6: "?", 0xE0: "'", 0xF4: ",", 0xBA: "e", 0xEF: "M", 0xF5: "F",
@@ -43,11 +65,23 @@ def decode_text(raw) -> str:
     return "".join(out).strip()
 
 
-def species_names_from_rom(rom: bytes) -> list[str]:
+def _enc(s: str) -> bytes:
+    return bytes(0x80 + ord(c) - 65 for c in s.upper() if "A" <= c.upper() <= "Z")
+
+
+def find_monster_names(rom: bytes) -> int:
+    """Offset of the species name table in a ROM image (Rhydon, Kangaskhan, ...), or the Red/Blue default."""
+    key = _enc("RHYDON") + b"\x50" * 4 + _enc("KANGASKHAN")
+    i = rom.find(key)
+    return i if i >= 0 else ROM_MONSTER_NAMES
+
+
+def species_names_from_rom(rom: bytes, offset: int | None = None) -> list[str]:
     """Internal species index (1-based) -> name. Index 0 / unused slots become '?'."""
+    base = find_monster_names(rom) if offset is None else offset
     names = ["?"]
     for i in range(MONSTER_COUNT):
-        chunk = rom[ROM_MONSTER_NAMES + i * 10: ROM_MONSTER_NAMES + (i + 1) * 10]
+        chunk = rom[base + i * 10: base + (i + 1) * 10]
         n = decode_text(chunk)
         names.append(n if n and n.upper() != "MISSINGNO." else "?")
     return names
@@ -118,28 +152,28 @@ def _bits(bs) -> int:
     return sum(bin(b).count("1") for b in bs)
 
 
-def read_status(mem, species_names: list[str]) -> Status:
+def read_status(mem, species_names: list[str], layout: Layout = RED_BLUE) -> Status:
     """`mem` has read(addr) -> int."""
-    rd = mem.read
-    name = decode_text([rd(ADDR_PLAYER_NAME + i) for i in range(11)])
-    count = min(rd(ADDR_PARTY_COUNT), 6)
+    rd, L = mem.read, layout
+    name = decode_text([rd(L.player_name + i) for i in range(11)])
+    count = min(rd(L.party_count), 6)
     party = []
     for i in range(count):
-        base = ADDR_PARTY_MONS + i * MON_SIZE
+        base = L.party_mons + i * MON_SIZE
         sp = rd(base + OFF_SPECIES)
-        nick = decode_text([rd(ADDR_PARTY_NICKS + i * NICK_SIZE + j) for j in range(NICK_SIZE)])
+        nick = decode_text([rd(L.party_nicks + i * NICK_SIZE + j) for j in range(NICK_SIZE)])
         sp_name = species_names[sp] if 0 < sp < len(species_names) else "?"
         party.append(Mon(nick or sp_name, sp_name, rd(base + OFF_LEVEL),
                          rd(base + OFF_HP) * 256 + rd(base + OFF_HP + 1),
                          rd(base + OFF_MAXHP) * 256 + rd(base + OFF_MAXHP + 1)))
-    battle = rd(ADDR_IN_BATTLE)
-    mid = rd(ADDR_MAP)
+    battle = rd(L.in_battle)
+    mid = rd(L.map_id)
     return Status(
-        started=bool(mid or rd(ADDR_X) or rd(ADDR_Y) or count), player=name, map_id=mid, map_name=map_name(mid),
-        x=rd(ADDR_X), y=rd(ADDR_Y),
+        started=bool(mid or rd(L.x) or rd(L.y) or count), player=name, map_id=mid, map_name=map_name(mid),
+        x=rd(L.x), y=rd(L.y),
         battle=-1 if battle == 0xFF else battle if battle in (0, 1, 2) else 0,
-        badges=_bits([rd(ADDR_BADGES)]), money=_bcd([rd(ADDR_MONEY + i) for i in range(3)]),
-        owned=_bits([rd(ADDR_DEX_OWNED + i) for i in range(19)]), seen=_bits([rd(ADDR_DEX_SEEN + i) for i in range(19)]),
+        badges=_bits([rd(L.badges)]), money=_bcd([rd(L.money + i) for i in range(3)]),
+        owned=_bits([rd(L.dex_owned + i) for i in range(19)]), seen=_bits([rd(L.dex_seen + i) for i in range(19)]),
         party=party)
 
 
@@ -180,3 +214,10 @@ def summary(st: Status) -> str:
     mon = f" | {lead.name} L{lead.level} {lead.hp}/{lead.max_hp}" if lead else ""
     fight = " | IN BATTLE" if st.battle > 0 else ""
     return f"{st.player} @ {st.map_name}{mon} | badges {st.badges}/8 | dex {st.owned}{fight}"
+
+
+# kept for older imports / tests: the Red/Blue addresses under their original names
+ADDR_PLAYER_NAME, ADDR_PARTY_COUNT, ADDR_PARTY_MONS = RED_BLUE.player_name, RED_BLUE.party_count, RED_BLUE.party_mons
+ADDR_PARTY_NICKS, ADDR_MAP, ADDR_Y, ADDR_X = RED_BLUE.party_nicks, RED_BLUE.map_id, RED_BLUE.y, RED_BLUE.x
+ADDR_BADGES, ADDR_MONEY, ADDR_IN_BATTLE = RED_BLUE.badges, RED_BLUE.money, RED_BLUE.in_battle
+ADDR_DEX_OWNED, ADDR_DEX_SEEN = RED_BLUE.dex_owned, RED_BLUE.dex_seen

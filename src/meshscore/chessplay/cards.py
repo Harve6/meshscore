@@ -9,6 +9,39 @@ import logging
 
 log = logging.getLogger("meshscore")
 
+_svg_cache: dict = {}
+
+
+def qr_svg(text: str) -> str:
+    """An inline SVG QR code for `text` (error correction M, 2-module quiet zone), or "" when `segno` is not
+    installed. Generated here rather than in the visitor's browser: it is identical for everybody, scales without
+    blurring, and can be checked with an independent decoder."""
+    if not text:
+        return ""
+    if text in _svg_cache:
+        return _svg_cache[text]
+    try:
+        import segno
+        m = segno.make(text, error="m").matrix
+    except Exception:
+        return ""
+    n, b, parts = len(m), 2, []
+    for y, row in enumerate(m):
+        x = 0
+        while x < n:
+            if row[x]:
+                s = x
+                while x < n and row[x]:
+                    x += 1
+                parts.append(f"M{s + b} {y + b}h{x - s}v1h-{x - s}z")
+            else:
+                x += 1
+    size = n + 2 * b
+    svg = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {size} {size}" shape-rendering="crispEdges">'
+           f'<rect width="{size}" height="{size}" fill="#fff"/><path fill="#000" d="{"".join(parts)}"/></svg>')
+    _svg_cache[text] = svg
+    return svg
+
 
 class CardsMixin:
     """Needs self.cfg, self.hub, self.pub (a SitePublisher), self.state, self.channel. Call `_cards_init()` once."""
@@ -51,4 +84,8 @@ class CardsMixin:
         chan = {"name": self.channel}
         if show and d.get("channel_card"):
             chan = {"name": self.channel, **d["channel_card"]}
-        return {"contact": d.get("contact") if show else None, "channel": chan}
+            chan["svg"] = qr_svg(chan.get("uri", ""))
+        contact = d.get("contact") if show else None
+        if contact:
+            contact = {**contact, "svg": qr_svg(contact.get("uri", ""))}
+        return {"contact": contact, "channel": chan}

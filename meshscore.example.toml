@@ -74,7 +74,11 @@ channel = "#leafs"
 # [bots.pokemon]              # the whole channel plays one Pokemon Red game (docs/pokemon.md) - bring your own ROM
 # type = "pokemon"            # needs: pip install pyboy pillow
 # channel = "#pokemon"
-# rom = "C:/path/to/Pokemon Red.gb"
+# rom = "C:/path/to/Pokemon Red.gb"      # one game ... or several, with a daily vote (see docs/pokemon.md):
+# [bots.pokemon.roms]
+# red = "C:/roms/Pokemon Red.gb"
+# blue = "C:/roms/Pokemon Blue.gb"
+# yellow = "C:/roms/Pokemon Yellow.gb"
 # window_seconds = 30        # the vote clock that starts at the first vote of a round
 # site_dir = "C:/Users/you/meshscore-pokemon"   # a clone of its own GitHub Pages repo
 # site_url = "https://YOU.github.io/meshscore-pokemon/"

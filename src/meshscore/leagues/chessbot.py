@@ -20,7 +20,7 @@ from ..chessplay.cards import CardsMixin
 from ..chessplay.engine import LEVELS, Opponent
 from ..chessplay.game import CrowdGame
 from ..chessplay.publish import SitePublisher
-from ..core import CFG, DIGEST_GRACE_HOURS, fit, fits, is_admin, pack, session
+from ..core import CFG, DIGEST_GRACE_HOURS, admin_refusal, fit, fits, is_strict_admin, pack, session
 from ..plugin import LeaguePlugin
 
 log = logging.getLogger("meshscore")
@@ -357,8 +357,8 @@ class ChessModule(CardsMixin, LeaguePlugin):
         return pack(f"[{self.tag}] 🧩", [pz.answer_text(puz)], sep=" ")
 
     async def cmd_newgame(self, inc, arg):
-        if not is_admin(inc):
-            return [f"[{self.tag}] Only admins can start a new game."]
+        if not is_strict_admin(inc):
+            return [fit(f"[{self.tag}] {admin_refusal('start a new game')}")]
         level = None
         if arg:
             if not arg.isdigit() or not 1 <= int(arg) <= self.max_level + 1:

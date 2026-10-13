@@ -560,7 +560,11 @@ def test_board_moves_top_and_newgame_commands():
             await r.say("!chess")                                        # the bare module name answers with the board
             assert "move 2" in r.t.sent[-1]
             r.take()
-            await r.say("!newgame 4")
+            await r.say("!newgame 4")                                    # no admins configured: admin commands are off
+            assert "Admin commands are off" in r.t.sent[0] and r.game.data["id"] == 1
+            CFG["admin_names"] = ["Boss"]
+            r.take()
+            await r.say("!newgame 4", name="Boss")
             assert r.game.data["id"] == 2 and r.game.data["level"] == 3 and "Club" in r.t.sent[0]
     run(go())
 
@@ -816,7 +820,7 @@ def test_channel_card_is_published_and_the_name_alone_when_unknown(tmp_path):
             r.t.uri, r.t.curi = "meshcore://aa", "meshcore://channel/add?name=%23chess&secret=00"
             await r.tick()
             st_ = json.load(open(tmp_path / "s" / "state.json", encoding="utf-8"))
-            assert st_["channel"] == {"name": "#chess", "uri": "meshcore://channel/add?name=%23chess&secret=00"}
+            assert (st_["channel"]["name"], st_["channel"]["uri"]) == ("#chess", "meshcore://channel/add?name=%23chess&secret=00")
         os.remove("chess_state.json")
         async with Rig(site_dir=str(tmp_path / "s2"), site_push=False) as r2:
             await r2.tick()
@@ -844,7 +848,7 @@ def test_the_radios_contact_card_is_published_for_the_page(tmp_path):
             r.t.own_name = "SportsBot"
             await r.tick()
             st_ = json.load(open(tmp_path / "site" / "state.json", encoding="utf-8"))
-            assert st_["contact"] == {"name": "SportsBot", "uri": "meshcore://c0ffee00"}
+            assert (st_["contact"]["name"], st_["contact"]["uri"]) == ("SportsBot", "meshcore://c0ffee00")
         async with Rig(site_dir=str(tmp_path / "site2"), site_push=False, show_contact=False) as r2:
             r2.t.uri = "meshcore://c0ffee00"
             await r2.tick()
