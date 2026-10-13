@@ -17,7 +17,8 @@ export default {
 
     if (url.pathname.startsWith("/api/")) {
       const token = (request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
-      if (!env.TOKEN || token !== env.TOKEN) return new Response("unauthorized", { status: 401 });
+      const want = String(env.TOKEN || "").trim();   // a secret piped in from a shell can carry a trailing newline
+      if (!want || token.trim() !== want) return new Response("unauthorized", { status: 401 });
       return board.fetch(request);
     }
     if (request.method !== "GET" && request.method !== "HEAD") return new Response("method not allowed", { status: 405 });
