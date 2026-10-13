@@ -358,7 +358,7 @@ class ChessModule(CardsMixin, LeaguePlugin):
 
     async def cmd_newgame(self, inc, arg):
         if not is_strict_admin(inc):
-            return [fit(f"[{self.tag}] {admin_refusal('start a new game')}")]
+            return [fit(f"[{self.tag}] {admin_refusal('start a new game', inc)}")]
         level = None
         if arg:
             if not arg.isdigit() or not 1 <= int(arg) <= self.max_level + 1:

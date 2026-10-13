@@ -319,10 +319,12 @@ def is_strict_admin(inc):
     return is_admin(inc)
 
 
-def admin_refusal(what):
+def admin_refusal(what, inc=None):
     """The reply to someone who may not use an admin-only command."""
     if not (CFG.get("admin_names") or CFG.get("admin_keys")):
         return "Admin commands are off: set admin_keys (or admin_names) in meshscore.toml [bot]"
+    if inc is not None and not inc.is_dm and CFG.get("admin_keys") and not CFG.get("admin_names"):
+        return f"Admin commands are DM-only: send me this as a direct message to {what}."
     return f"Only admins can {what}."
 
 

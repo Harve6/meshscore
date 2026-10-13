@@ -271,7 +271,7 @@ def test_admin_commands_are_off_until_admins_are_configured_and_reset_can_name_a
             assert "Admin commands are off" in r.t.sent[-1] and r.m.active == "red"
             CFG["admin_keys"] = ["ab12"]                                          # an authenticated (DM) admin only
             await r.say("!reset confirm", name="Ann")                             # a name on the channel is not enough
-            assert "Only admins can reset a game" in r.t.sent[-1] and r.m.gb.presses
+            assert "DM-only" in r.t.sent[-1] and r.m.gb.presses
             await r.say("!pokemon reset", name="Boss", dm=True, key="ab12" + "00" * 14)
             assert "!reset red confirm" in r.t.dms[-1][1]
             await r.say("!pokemon switch yellow", name="Boss", dm=True, key="ab12" + "00" * 14)

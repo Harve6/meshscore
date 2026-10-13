@@ -429,7 +429,7 @@ class PokemonModule(CardsMixin, LeaguePlugin):
 
     async def cmd_switch(self, inc, arg):
         if not is_strict_admin(inc):
-            return [fit(f"[{self.tag}] {admin_refusal('switch games')}")]
+            return [fit(f"[{self.tag}] {admin_refusal('switch games', inc)}")]
         if not self.multi:
             return [f"[{self.tag}] Only one ROM is configured"]
         g = self._match_game(arg)
@@ -482,7 +482,7 @@ class PokemonModule(CardsMixin, LeaguePlugin):
     async def cmd_reset(self, inc, arg):
         """!reset [game] confirm - wipe a game's save (the one being played unless another is named)."""
         if not is_strict_admin(inc):
-            return [fit(f"[{self.tag}] {admin_refusal('reset a game')}")]
+            return [fit(f"[{self.tag}] {admin_refusal('reset a game', inc)}")]
         words = [w.lower() for w in inc.rest]
         confirm = "confirm" in words
         named = next((self._match_game(w) for w in words if w != "confirm" and self._match_game(w)), None)
