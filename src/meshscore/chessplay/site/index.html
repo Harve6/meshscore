@@ -97,6 +97,17 @@ footer { color: var(--muted); font-size: .85rem; margin: 18px 0 8px; }
       <div class="card"><h2>Moves</h2><div class="moves" id="moves"></div></div>
       <div class="card"><h2>Difficulty</h2><div class="ladder" id="ladder"></div>
         <p class="muted" id="record" style="margin:10px 0 0"></p></div>
+      <div class="card" id="chancard" hidden>
+        <h2>Play: join <span id="chname">the channel</span></h2>
+        <div class="contact">
+          <div id="chqr" class="qr"></div>
+          <div>
+            <p style="margin:0 0 6px">Scan this in the MeshCore app to join the channel, then vote with <code>!move e4</code>.</p>
+            <p class="muted" style="margin:0" id="chhow"></p>
+            <a id="churi" class="muted" href="#"></a>
+          </div>
+        </div>
+      </div>
       <div class="card" id="contactcard" hidden>
         <h2>Add the bot as a contact</h2>
         <div class="contact">
@@ -234,10 +245,34 @@ function render() {
     $("puzhead").textContent = (p.side === "white" ? "White" : "Black") + " to move - rating " + p.rating;
     $("puzsolved").textContent = p.solved.length ? "Solved by: " + p.solved.join(", ") : "Nobody has solved it yet.";
   } else pc.hidden = true;
+  renderChannel();
   renderContact();
   tick();
 }
 let qrFor = "";
+let chFor = "";
+function setQR(box, text) {
+  box.textContent = "";
+  if (!window.QRCode) return;
+  try { new QRCode(box, {text: text, width: 132, height: 132, colorDark: "#000000", colorLight: "#ffffff",
+                        correctLevel: QRCode.CorrectLevel.L}); } catch (e) { box.textContent = ""; }
+}
+function renderChannel() {
+  const ch = state.channel, card = $("chancard");
+  if (!ch || !ch.name) { card.hidden = true; return; }
+  card.hidden = false;
+  $("chname").textContent = ch.name;
+  const hashtag = ch.name.charAt(0) === "#";
+  $("chhow").textContent = hashtag
+    ? "Or by hand: in the app add a hashtag channel named " + ch.name.slice(1) + " (no password needed)."
+    : "Or ask the operator for the channel's name and key.";
+  const a = $("churi");
+  if (ch.uri) {
+    a.hidden = false; a.href = ch.uri; a.textContent = ch.uri.length > 70 ? ch.uri.slice(0, 66) + "..." : ch.uri;
+    if (chFor !== ch.uri) { chFor = ch.uri; setQR($("chqr"), ch.uri); }
+    $("chqr").style.display = "";
+  } else { a.hidden = true; $("chqr").style.display = "none"; }
+}
 function renderContact() {
   const c = state.contact, card = $("contactcard");
   if (!c || !c.uri) { card.hidden = true; return; }

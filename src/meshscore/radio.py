@@ -38,6 +38,7 @@ class Transport:
     def find_contact(self, name=None, key=None): return None
     async def status_extra(self): return ""
     async def own_contact_uri(self): return ""      # this radio's shareable contact card (meshcore://...), "" if unknown
+    async def channel_uri(self, channel): return ""  # a channel's shareable join link (meshcore://channel/add?...), "" if unknown
 
 
 def chan_key(name):
@@ -232,6 +233,25 @@ class LibTransport(Transport):
             return str((r.payload or {}).get("uri", "")) if r is not None and r.type != self.ET.ERROR else ""
         except Exception as e:
             log.debug("Could not export the radio's contact card: %s", e)
+            return ""
+
+    async def channel_uri(self, channel):
+        """The join link for a channel on this radio, as the MeshCore app's channel QR carries it."""
+        idx = self.chans.get(chan_key(channel))
+        if idx is None:
+            return ""
+        try:
+            from urllib.parse import quote
+            r = await self.mc.commands.get_channel(idx)
+            if r is None or r.type == self.ET.ERROR:
+                return ""
+            p = r.payload or {}
+            secret, name = p.get("channel_secret"), str(p.get("channel_name", "")).strip("\x00 ")
+            if not secret or not name:
+                return ""
+            return f"meshcore://channel/add?name={quote(name)}&secret={bytes(secret).hex()}"
+        except Exception as e:
+            log.debug("Could not read channel %s: %s", channel, e)
             return ""
 
     async def status_extra(self):

@@ -57,7 +57,7 @@ class ChessModule(LeaguePlugin):
                                  push=bool(c.get("site_push", True)), sync_page=bool(c.get("site_sync", True)))
         self.busy = False
         self._anon = 0
-        self._contact_tried, self._contact_ok = 0.0, False   # reading the radio's contact card
+        self._contact_tried, self._contact_ok = 0.0, False   # reading the radio's contact card + channel link
         d = self.state.data
         d.setdefault("level", max(0, min(int(c.get("start_level", 1)) - 1, self.max_level)))
         d.setdefault("next_id", 1)
@@ -67,6 +67,7 @@ class ChessModule(LeaguePlugin):
         d.setdefault("game", None)
         d.setdefault("puzzle", None)
         d.setdefault("puzzle_date", "")
+        d.setdefault("channel_card", None)         # {"name", "uri"}: how to join the channel, shown as a QR on the page
         d.setdefault("contact", None)               # {"name", "uri"}: the radio's contact card, shown as a QR on the page
         g = d["game"]
         if g and not g.get("over") and g.get("window_end") and g["window_end"] < self.clock():
@@ -227,10 +228,18 @@ class ChessModule(LeaguePlugin):
         except Exception as e:
             log.debug("contact card unavailable: %s", e)
             return
+        try:
+            curi = await self.hub.t.channel_uri(self.channel)
+        except Exception as e:
+            log.debug("channel link unavailable: %s", e)
+            curi = ""
+        if curi.startswith("meshcore://"):
+            self.state.data["channel_card"] = {"name": self.channel, "uri": curi}
         if uri and uri.startswith("meshcore://"):
-            self._contact_ok = True
             self.state.data["contact"] = {"name": getattr(self.hub.t, "own_name", "") or "", "uri": uri}
-            self.state.save()
+        if uri and curi:
+            self._contact_ok = True
+        self.state.save()
 
     # ---------------------------------------------------------------- the daily puzzle
     async def _maybe_puzzle(self):
@@ -413,6 +422,8 @@ class ChessModule(LeaguePlugin):
             },
             "record": d["record"],
             "contact": d.get("contact") if self.cfg.get("show_contact", True) else None,
+            "channel": ({"name": self.channel, **d["channel_card"]} if d.get("channel_card") and
+                        self.cfg.get("show_contact", True) else {"name": self.channel}),
             "players": [{"name": n, **p} for n, p in top],
             "history": d["history"],
             "puzzle": ({"id": puz["id"], "date": puz["date"], "fen": puz["fen"], "side": puz["side"],

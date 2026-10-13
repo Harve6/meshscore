@@ -251,6 +251,9 @@ class Radio(Transport):
     async def own_contact_uri(self):
         return getattr(self, "uri", "")
 
+    async def channel_uri(self, channel):
+        return getattr(self, "curi", "")
+
     def find_contact(self, name=None, key=None):
         for n, k in self.contacts.items():
             if (name and n.lower() == name.lower()) or (key and k.startswith(key[:12])):
@@ -789,6 +792,38 @@ def test_publisher_without_a_git_clone_just_writes_the_file(tmp_path):
     assert SitePublisher("").tick({"a": 1}) is False
 
 
+def test_channel_join_link_is_built_from_the_radios_channel_secret():
+    from types import SimpleNamespace
+    from meshscore.radio import LibTransport
+
+    class Cmds:
+        async def get_channel(self, idx):
+            assert idx == 8
+            return SimpleNamespace(type="ok", payload={"channel_name": "#chess\x00", "channel_secret": bytes(range(16))})
+
+    t = LibTransport()
+    t.ET = SimpleNamespace(ERROR="err")
+    t.mc = SimpleNamespace(commands=Cmds())
+    t.chans = {"chess": 8}
+    uri = asyncio.run(t.channel_uri("#chess"))
+    assert uri == "meshcore://channel/add?name=%23chess&secret=000102030405060708090a0b0c0d0e0f"
+    assert asyncio.run(t.channel_uri("#nope")) == ""
+
+
+def test_channel_card_is_published_and_the_name_alone_when_unknown(tmp_path):
+    async def go():
+        async with Rig(site_dir=str(tmp_path / "s"), site_push=False, opponent=Scripted()) as r:
+            r.t.uri, r.t.curi = "meshcore://aa", "meshcore://channel/add?name=%23chess&secret=00"
+            await r.tick()
+            st_ = json.load(open(tmp_path / "s" / "state.json", encoding="utf-8"))
+            assert st_["channel"] == {"name": "#chess", "uri": "meshcore://channel/add?name=%23chess&secret=00"}
+        os.remove("chess_state.json")
+        async with Rig(site_dir=str(tmp_path / "s2"), site_push=False) as r2:
+            await r2.tick()
+            assert json.load(open(tmp_path / "s2" / "state.json", encoding="utf-8"))["channel"] == {"name": "#chess"}
+    run(go())
+
+
 def test_the_page_is_kept_in_step_unless_sync_is_off(tmp_path):
     site = tmp_path / "s"
     SitePublisher(str(site), min_interval=0).tick({"a": 1})
@@ -826,5 +861,5 @@ def test_the_radios_contact_card_is_published_for_the_page(tmp_path):
 
 def test_the_bundled_page_exists_and_reads_the_documented_state_keys():
     html = open(os.path.join(os.path.dirname(core.__file__), "chessplay", "site", "index.html"), encoding="utf-8").read()
-    for key in ("state.json", "game.fen", "window_end", "votes", "puzzle", "players", "record", "contact"):
+    for key in ("state.json", "game.fen", "window_end", "votes", "puzzle", "players", "record", "contact", "channel", "chancard"):
         assert key.split(".")[-1] in html, key
