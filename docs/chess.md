@@ -26,7 +26,7 @@ Create the channel in the MeshCore app first (the bot needs `#chess` on its radi
 | `[bots.chess]` setting | default | |
 |---|---|---|
 | `channel` | | the channel everyone plays on |
-| `window_minutes` | `5` | the vote clock; it starts at the **first** vote of a round |
+| `window_minutes` | `5` | the vote clock; it starts at the **first** vote of a round. Fractions work (`0.5` = 30 s, the minimum) |
 | `start_level` | `1` | 1-8, where a brand-new bot starts |
 | `max_level` | `8` | the level cap (the crowd can beat the top level again and again) |
 | `ack` | `"dm"` | how a vote is answered: `dm` (privately, when the radio knows the sender), `chan` (a short channel reply) or `off`. Illegal moves get a short channel reply unless `off` |

@@ -119,3 +119,19 @@ def test_the_chess_bot_can_use_the_web_service_too():
         finally:
             srv.shutdown()
     asyncio.run(go())
+
+
+def test_each_page_links_to_the_other_board_when_both_bots_run_together():
+    from meshscore.cli import build_hub
+    from test_chess import Radio
+    CFG["modules"] = {
+        "chess": {"enabled": True, "type": "chess", "channel": "#chess", "puzzle": False, "site_url": "https://c.test/"},
+        "pokemon": {"enabled": True, "type": "pokemon", "channel": "#pokemon", "emulator": "fake",
+                    "site_url": "https://p.test/"},
+    }
+    hub = build_hub(Radio())
+    c, p = hub.modules["chess"], hub.modules["pokemon"]
+    assert c.site_state()["links"] == [{"title": "Mesh Plays Pokemon", "url": "https://p.test/"}]
+    assert p.site_state()["links"] == [{"title": "Mesh Chess", "url": "https://c.test/"}]
+    CFG["modules"] = {"chess": {"enabled": True, "type": "chess", "channel": "#chess", "puzzle": False}}
+    assert build_hub(Radio()).modules["chess"].site_state()["links"] == []

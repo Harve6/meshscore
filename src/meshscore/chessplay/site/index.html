@@ -61,6 +61,7 @@ td { padding: 3px 4px; border-bottom: 1px solid var(--line); } td:last-child { t
 .puz { display: grid; grid-template-columns: minmax(0, 260px) 1fr; gap: 14px; align-items: start; }
 @media (max-width: 560px) { .puz { grid-template-columns: minmax(0, 1fr); } }
 .muted { color: var(--muted); }
+a { color: var(--accent); }
 footer { color: var(--muted); font-size: .85rem; margin: 18px 0 8px; }
 </style>
 </head>
@@ -68,6 +69,7 @@ footer { color: var(--muted); font-size: .85rem; margin: 18px 0 8px; }
 <main>
   <h1>Mesh Chess <span class="muted">- the crowd vs the bot</span></h1>
   <p class="sub">Everyone on the mesh plays White together by voting. Moves are sent over the radio; this page just watches.</p>
+  <p class="sub" id="links"></p>
   <div class="warn" id="warn"></div>
   <div class="grid">
     <div class="stack">
@@ -184,7 +186,7 @@ function render() {
   // votes
   const v = $("votes");
   v.textContent = "";
-  if (!g.votes.length) { v.textContent = "No votes yet - the first vote starts a " + Math.round(state.window_seconds / 60) + " minute clock."; }
+  if (!g.votes.length) { v.textContent = "No votes yet - the first vote starts a " + (state.window_seconds >= 90 ? Math.round(state.window_seconds / 60) + " minute" : state.window_seconds + " second") + " clock."; }
   const max = Math.max(1, ...g.votes.map(x => x.n));
   for (const x of g.votes) {
     const row = document.createElement("div"); row.className = "row";
@@ -246,6 +248,7 @@ function render() {
     $("puzsolved").textContent = p.solved.length ? "Solved by: " + p.solved.join(", ") : "Nobody has solved it yet.";
   } else pc.hidden = true;
   renderChannel();
+  sibling();
   renderContact();
   tick();
 }
@@ -257,6 +260,17 @@ function showQR(box, card) {
   if (!window.QRCode) return;
   try { new QRCode(box, {text: card.uri, width: 132, height: 132, colorDark: "#000000", colorLight: "#ffffff",
                         correctLevel: QRCode.CorrectLevel.M}); } catch (e) { box.textContent = ""; }
+}
+function sibling() {
+  const el = $("links"), ls = (state && state.links) || [];
+  el.textContent = "";
+  if (!ls.length) return;
+  el.append("Also live: ");
+  ls.forEach((l, i) => {
+    const a = document.createElement("a"); a.href = l.url; a.textContent = l.title;
+    el.appendChild(a);
+    if (i < ls.length - 1) el.append(" · ");
+  });
 }
 function renderChannel() {
   const ch = state.channel, card = $("chancard");

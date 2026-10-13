@@ -40,6 +40,7 @@ class ChessModule(CardsMixin, LeaguePlugin):
     kinds = {"max": {"start", "move", "final", "puzzle"}, "min": {"start", "final", "puzzle"}, "off": set()}
     min_blurb = "game results + the daily puzzle (no per-move posts)"
     bare_command = "!board"
+    board_title = "Mesh Chess"
     no_cooldown_cmds = ("!move", "!m", "!puzzle")      # many people vote at once; each is limited by what a vote can do
 
     def __init__(self, hub, name):

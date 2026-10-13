@@ -40,6 +40,7 @@ class PokemonModule(CardsMixin, LeaguePlugin):
              "min": {"badge", "caught", "evolve", "ballot"}, "off": set()}
     min_blurb = "badges, new Pokemon, evolutions and the daily game vote only"
     bare_command = "!where"
+    board_title = "Mesh Plays Pokemon"
     no_cooldown_cmds = tuple("!" + b for b in BUTTONS) + ("!u", "!d", "!l", "!r", "!sel", "!press", "!p", "!game")
 
     def __init__(self, hub, name):

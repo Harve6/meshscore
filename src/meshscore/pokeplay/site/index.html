@@ -47,6 +47,7 @@ ul.ev { list-style: none; margin: 0; padding: 0; } ul.ev li { padding: 3px 0; bo
 .qr svg, .qr img, .qr canvas { display: block; width: 100% !important; height: 100% !important; }
 .uri { word-break: break-all; font-size: .72rem; }
 @media (max-width: 420px) { .contact { grid-template-columns: minmax(0, 1fr); } }
+a { color: var(--accent); }
 footer { color: var(--muted); font-size: .85rem; margin: 18px 0 8px; }
 </style>
 </head>
@@ -54,6 +55,7 @@ footer { color: var(--muted); font-size: .85rem; margin: 18px 0 8px; }
 <main>
   <h1>Mesh Plays Pokemon <span class="muted" id="gname"></span></h1>
   <p class="sub">One game, everyone on the mesh channel at once. Send a button over the radio; the most popular one is pressed.</p>
+  <p class="sub" id="links"></p>
   <div class="warn" id="warn"></div>
   <div class="grid">
     <div class="stack">
@@ -155,6 +157,7 @@ function render() {
   $("gname").textContent = s.game && s.game.title ? "- " + s.game.title.replace(/^Pokemon /, "") + " Version" : "";
   document.title = "Mesh Plays " + (s.game && s.game.title ? s.game.title : "Pokemon");
   ballot();
+  sibling();
   const v = $("votes"); v.textContent = "";
   if (!s.votes.length) v.textContent = "No votes yet - the first one starts a " + s.window_seconds + " second clock.";
   const max = Math.max(1, ...s.votes.map(x => x.n));
@@ -194,6 +197,17 @@ function render() {
   for (const q of s.players) { const tr = pt.insertRow(); tr.insertCell().textContent = q.name; tr.insertCell().textContent = q.presses + " presses"; }
   cards();
   tick();
+}
+function sibling() {
+  const el = $("links"), ls = (state && state.links) || [];
+  el.textContent = "";
+  if (!ls.length) return;
+  el.append("Also live: ");
+  ls.forEach((l, i) => {
+    const a = document.createElement("a"); a.href = l.url; a.textContent = l.title;
+    el.appendChild(a);
+    if (i < ls.length - 1) el.append(" · ");
+  });
 }
 function ballot() {
   const s = state, g = s.game || {}, card = $("ballotcard");

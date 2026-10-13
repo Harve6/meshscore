@@ -87,6 +87,15 @@ class CardsMixin:
             self._contact_ok = True
         self.state.save()
 
+    def _board_links(self) -> list:
+        """The other web boards run by bots in this same MeshScore (so each page can link to its sibling)."""
+        out = []
+        for m in getattr(self.hub, "modules", {}).values():
+            url, title = str(getattr(m, "site_url", "") or ""), str(getattr(m, "board_title", "") or "")
+            if m is not self and url and title:
+                out.append({"title": title, "url": url})
+        return out
+
     def _cards_for_site(self) -> dict:
         d = self.state.data
         show = self.cfg.get("show_contact", True)
@@ -97,4 +106,4 @@ class CardsMixin:
         contact = d.get("contact") if show else None
         if contact:
             contact = {**contact, "svg": qr_svg(contact.get("link") or contact.get("uri", ""))}
-        return {"contact": contact, "channel": chan}
+        return {"contact": contact, "channel": chan, "links": self._board_links()}
