@@ -46,8 +46,11 @@ Create the channel in the MeshCore app first (the bot needs `#chess` on its radi
 | | |
 |---|---|
 | `!move e4` / `!move Nf3` / `!move O-O` | vote (also `e2e4`, `nf3`, `0-0`; `!m` is a short form). Change your mind by voting again |
+| `!move g1 f3` | **from-to**: the square the piece is on, then where it goes. Never ambiguous - the easy way when two pieces can reach a square |
+| `!move knight e3`, `!move pawn e4` | piece name + square (`n`, `horse`, `bishop`, `rook`, `queen`, `king`, `pawn`). If two pieces can go there the bot answers `Which one? Send !move N: 1=Nce3(c2) \| 2=Nge3(g2)` - reply `!move 1` |
+| `!move castle short` / `castle long` | castling in words |
 | `!board` (or just `!chess`) | game number, level, last moves, vote counts, time left |
-| `!moves` | the legal moves |
+| `!moves` | the legal moves. `!moves g1` = what the piece on g1 can do; `!moves knight` = that piece type |
 | `!top` | the crowd's record and who picks the winning moves |
 | `!puzzle` / `!puzzle Qh5` | the daily puzzle / an answer (3 tries; a multi-move puzzle replies with the opponent's move) |
 | `!answer` | the puzzle's solution |

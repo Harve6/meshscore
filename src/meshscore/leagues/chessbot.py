@@ -18,7 +18,7 @@ from .. import core
 from ..chessplay import puzzle as pz
 from ..chessplay.cards import CardsMixin
 from ..chessplay.engine import LEVELS, Opponent
-from ..chessplay.game import CrowdGame
+from ..chessplay.game import PIECE_WORDS, CrowdGame, candidates
 from ..chessplay.publish import HttpPublisher, SitePublisher
 from ..core import CFG, DIGEST_GRACE_HOURS, admin_refusal, fit, fits, is_strict_admin, pack, session
 from ..plugin import LeaguePlugin
@@ -63,6 +63,7 @@ class ChessModule(CardsMixin, LeaguePlugin):
                                      push=bool(c.get("site_push", True)), sync_page=bool(c.get("site_sync", True)))
         self.busy = False
         self._anon = 0
+        self._pending = {}        # voter -> (ply, [uci...]): the choices offered after an ambiguous move
         self._cards_init()
         d = self.state.data
         d.setdefault("level", max(0, min(int(c.get("start_level", 1)) - 1, self.max_level)))
@@ -257,7 +258,7 @@ class ChessModule(CardsMixin, LeaguePlugin):
                 "!newgame": self.cmd_newgame}
 
     def help_text(self):
-        return "!move <e4|Nf3> vote | !board | !moves | !puzzle <move> | !answer | !top"
+        return "!move <e4|Nf3|g1 f3> vote | !board | !moves [g1] | !puzzle <move> | !answer | !top"
 
     def status_extra(self):
         g = self.state.data.get("game") or {}
@@ -265,18 +266,35 @@ class ChessModule(CardsMixin, LeaguePlugin):
 
     async def cmd_move(self, inc, arg):
         g = self.game()
-        if not arg:
-            return [fit(f"[{self.tag}] Vote a move: !move e4 or !move Nf3 (!moves lists the legal ones)")]
+        text = " ".join(inc.rest) if inc.rest else arg          # "g1 f3" and "knight e3" are several words
+        if not text:
+            return [fit(f"[{self.tag}] Vote a move: !move e4, !move Nf3, !move g1 f3 or !move knight e3 (!moves lists them)")]
         if self.busy:
             self._feedback(inc, "♟ The bot is thinking - vote again in a moment", important=True)
             return []
         who = self._voter(inc)
-        status, san = g.vote(who, arg)
+        if text.strip().isdigit():                              # the answer to a "which one?"
+            pend = self._pending.get(who)
+            i = int(text.strip()) - 1
+            if not pend or pend[0] != len(g.data["moves"]) or not 0 <= i < len(pend[1]):
+                self._feedback(inc, "✗ no choices waiting - send the move, like !move g1 f3", important=True)
+                return []
+            text = pend[1][i]
+        status, san = g.vote(who, text)
+        if status == "ambiguous":                               # two pieces can go there: offer numbered choices
+            b = g.board
+            opts = sorted(candidates(b, text), key=lambda m: m.from_square)[:6]       # a1..h8: the same order every time
+            if len(opts) > 1:
+                self._pending[who] = (len(g.data["moves"]), [m.uci() for m in opts])
+                shown = " | ".join(f"{i}={b.san(m)}({chess.square_name(m.from_square)})" for i, m in enumerate(opts, 1))
+                self._feedback(inc, f"Which one? Send !move N: {shown}", important=True)
+                return []
         if status != "ok":
-            word = {"ambiguous": "is ambiguous - add the file, e.g. Nbd2",
+            word = {"ambiguous": "is ambiguous - say it from-to, like g1 f3",
                     "illegal": "is not legal here (!moves lists them)", "empty": "?"}.get(status, "is not possible now")
-            self._feedback(inc, f"✗ {arg} {word}", important=True)
+            self._feedback(inc, f"✗ {text} {word}", important=True)
             return []
+        self._pending.pop(who, None)
         if not g.data.get("window_end"):
             g.data["window_end"] = self.clock() + self.window
         self.state.save()
@@ -307,9 +325,24 @@ class ChessModule(CardsMixin, LeaguePlugin):
                     f"{' | votes: ' + votes if votes else ''}{clock}{url}")]
 
     async def cmd_moves(self, inc, arg):
+        """!moves = every legal move; !moves g1 = what the piece on g1 can do; !moves knight = that piece type."""
         g = self.game()
         b = g.board
-        return pack(f"[{self.tag}] legal:", sorted(b.san(m) for m in b.legal_moves), sep=" ")
+        word = (arg or "").strip().lower()
+        moves, label = list(b.legal_moves), "legal"
+        if len(word) == 2 and word[0] in "abcdefgh" and word[1] in "12345678":
+            sq = chess.parse_square(word)
+            piece = b.piece_at(sq)
+            moves = [m for m in moves if m.from_square == sq]
+            if not moves:
+                return [fit(f"[{self.tag}] Nothing of yours on {word} can move")]
+            label = f"{chess.piece_name(piece.piece_type)} {word}"
+        elif word in PIECE_WORDS and word != "castle":
+            moves = [m for m in moves if b.piece_type_at(m.from_square) == PIECE_WORDS[word]]
+            label = chess.piece_name(PIECE_WORDS[word])
+            if not moves:
+                return [fit(f"[{self.tag}] No {label} can move")]
+        return pack(f"[{self.tag}] {label}:", sorted(b.san(m) for m in moves), sep=" ")
 
     async def cmd_top(self, inc, arg):
         d = self.state.data
@@ -328,6 +361,7 @@ class ChessModule(CardsMixin, LeaguePlugin):
         if not puz:
             return [f"[{self.tag}] No puzzle yet - one is posted every day at {self.puzzle_hour}:00"]
         who = self._voter(inc)
+        arg = " ".join(inc.rest) if inc.rest else arg
         if not arg:
             b = pz.position(puz, who)
             side = "White" if b.turn == chess.WHITE else "Black"
@@ -348,7 +382,7 @@ class ChessModule(CardsMixin, LeaguePlugin):
             tail = f"{left} {'try' if left == 1 else 'tries'} left" if left else "out of tries - !answer shows it"
             return [fit(f"🧩 {res['san']} isn't it. {tail}")]
         if st == "ambiguous":
-            return [f"[{self.tag}] That move is ambiguous - add the file, e.g. Nbd2"]
+            return [f"[{self.tag}] That move is ambiguous - say it from-to, like g1 f3"]
         if st == "locked":
             return [f"[{self.tag}] Out of tries on this puzzle - !answer shows the solution"]
         if st == "done":

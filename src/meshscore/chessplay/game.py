@@ -22,6 +22,11 @@ def parse_move(board: chess.Board, text: str):
     if not raw:
         return None, "empty"
     raw = raw.strip(".,;:!?'\"` ")
+    tokens = _tokens(raw)
+    if len(tokens) >= 2 or (tokens and tokens[0] in ("castle", "castling", "castles")):    # "g1 f3", "knight e3"
+        c = word_candidates(board, raw)
+        if c is not None:
+            return (c[0], None) if len(c) == 1 else (None, "ambiguous" if c else "illegal")
     s = re.sub(r"[+#!?]+$", "", raw)
     s = s.replace("0-0-0", "O-O-O").replace("0-0", "O-O").replace("o-o-o", "O-O-O").replace("o-o", "O-O")
     s = re.sub(r"^\d+\.+", "", s)               # "12.Nf3" / "12...Nc6"
@@ -56,6 +61,82 @@ def parse_move(board: chess.Board, text: str):
         except ValueError:                        # invalid / illegal / empty-SAN errors all derive from ValueError
             continue
     return None, "ambiguous" if ambiguous else "illegal"
+
+
+# ---------------------------------------------------------------- saying a move in plain words
+PIECE_WORDS = {"pawn": chess.PAWN, "p": chess.PAWN, "knight": chess.KNIGHT, "n": chess.KNIGHT, "horse": chess.KNIGHT,
+               "bishop": chess.BISHOP, "b": chess.BISHOP, "rook": chess.ROOK, "r": chess.ROOK, "castle": chess.ROOK,
+               "queen": chess.QUEEN, "q": chess.QUEEN, "king": chess.KING, "k": chess.KING}
+_FILLER = {"to", "the", "at", "on", "move", "moves", "goes", "go", "takes", "take", "captures", "capture", "x", "from",
+           "with", "my", "a", "an", "and", "-"}
+_SQ = re.compile(r"[a-h][1-8]")
+_PROMO = {"q": chess.QUEEN, "queen": chess.QUEEN, "r": chess.ROOK, "rook": chess.ROOK, "b": chess.BISHOP,
+          "bishop": chess.BISHOP, "n": chess.KNIGHT, "knight": chess.KNIGHT}
+
+
+def _tokens(text: str) -> list[str]:
+    return [t for t in re.split(r"[\s,;:/>=+#!?.-]+", (text or "").lower().strip()) if t and t not in _FILLER]
+
+
+def _one_per_promotion(moves):
+    """Four promotions to the same square are one choice: the queen."""
+    best = {}
+    for m in moves:
+        k = (m.from_square, m.to_square)
+        if k not in best or (m.promotion == chess.QUEEN):
+            best[k] = m
+    return list(best.values())
+
+
+def word_candidates(board: chess.Board, text: str):
+    """Legal moves that match a plain-words move ("g1 f3", "knight e3", "pawn e3", "castle short"), or None when the
+    text is not in that shape. One result = that move; several = the person has to choose."""
+    t = _tokens(text)
+    legal = list(board.legal_moves)
+    if len(t) == 3 and _SQ.fullmatch(t[0]) and _SQ.fullmatch(t[1]) and t[2] in _PROMO:     # "e7 e8 queen"
+        a, b = chess.parse_square(t[0]), chess.parse_square(t[1])
+        return [m for m in legal if m.from_square == a and m.to_square == b and m.promotion == _PROMO[t[2]]]
+    if len(t) == 2 and _SQ.fullmatch(t[0]) and _SQ.fullmatch(t[1]):                          # "g1 f3"
+        a, b = chess.parse_square(t[0]), chess.parse_square(t[1])
+        return _one_per_promotion([m for m in legal if m.from_square == a and m.to_square == b])
+    if len(t) == 2 and t[0] in PIECE_WORDS and t[0] != "castle" and _SQ.fullmatch(t[1]):     # "knight e3", "pawn e3"
+        pt, sq = PIECE_WORDS[t[0]], chess.parse_square(t[1])
+        return _one_per_promotion([m for m in legal if m.to_square == sq and board.piece_type_at(m.from_square) == pt])
+    if t and t[0] in ("castle", "castling", "castles"):
+        king_side = [m for m in legal if board.is_kingside_castling(m)]
+        queen_side = [m for m in legal if board.is_queenside_castling(m)]
+        if len(t) == 1:
+            return king_side + queen_side
+        w = t[1]
+        if w in ("short", "kingside", "king", "k", "right", "0-0", "o-o"):
+            return king_side
+        if w in ("long", "queenside", "queen", "q", "left", "0-0-0", "o-o-o"):
+            return queen_side
+    return None
+
+
+def candidates(board: chess.Board, text: str) -> list:
+    """Every legal move the text could mean (for asking "which one?"): plain words, or SAN missing its disambiguation
+    (Nd2 when two knights can go there)."""
+    c = word_candidates(board, text)
+    if c is not None:
+        return c
+    m = re.fullmatch(r"([nbrqk])([a-h]?)([1-8]?)x?([a-h][1-8])", re.sub(r"[+#!?\s]+", "", (text or "").lower()))
+    if not m:
+        return []
+    pt = PIECE_WORDS[m.group(1)]
+    f, r, sq = m.group(2), m.group(3), chess.parse_square(m.group(4))
+    out = []
+    for mv in board.legal_moves:
+        if mv.to_square != sq or board.piece_type_at(mv.from_square) != pt:
+            continue
+        if f and chess.square_file(mv.from_square) != ord(f) - 97:
+            continue
+        if r and chess.square_rank(mv.from_square) != int(r) - 1:
+            continue
+        out.append(mv)
+    return out
+
 
 
 def san_line(board: chess.Board, ucis, limit: Optional[int] = None) -> list[str]:
