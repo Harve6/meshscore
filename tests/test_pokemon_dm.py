@@ -118,14 +118,27 @@ def test_the_page_says_who_the_radio_has_heard():
     async def go():
         async with Rig(site_dir="site", site_push=False, cooldown=0) as r:
             await r.tick()
-            assert r.m.site_state()["heard"] == {"ago": None, "senders_24h": 0}          # nobody yet
+            assert r.m.site_state()["heard"] == {"last": None, "senders_24h": 0}          # nobody yet
             await r.say("hello there", name="Ann")                                         # any channel traffic counts
             await r.say("!up", name="Bob")
             await r.say("!a", name="Bob")
             st = r.m.site_state()["heard"]
-            assert st["senders_24h"] == 2 and st["ago"] is not None and st["ago"] < 5
+            assert st["senders_24h"] == 2 and abs(st["last"] - __import__("time").time()) < 5
             r.hub.heard["pokemon"]["Old"] = 1.0                                            # heard long ago: not counted
             assert r.m.site_state()["heard"]["senders_24h"] == 2
             await r.say("hi", name="Eve", dm=True)                                         # DMs are not channel hearing
             assert r.m.site_state()["heard"]["senders_24h"] == 2
+    run(go())
+
+
+def test_the_heard_field_is_stable_between_polls():
+    """A time, not an age: an idle channel must not make the page state change every second (that was one upload per poll)."""
+    import time as _t
+
+    async def go():
+        async with Rig(site_dir="site", site_push=False, cooldown=0) as r:
+            await r.say("hi", name="Ann")
+            a = r.m.site_state()["heard"]
+            await asyncio.sleep(1.2)
+            assert r.m.site_state()["heard"] == a
     run(go())

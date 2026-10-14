@@ -265,8 +265,9 @@ function showQR(box, card) {
 function heard() {
   const h = state.heard, el = $("heard");
   if (!h) { el.textContent = ""; return; }
-  if (h.ago === null || h.ago === undefined) { el.textContent = "The bot's radio has not heard anyone on the channel lately - send !ping to check it can hear you."; return; }
-  el.textContent = "The bot's radio last heard someone on the channel " + (h.ago < 90 ? "just now" : Math.round(h.ago / 60) + " min ago")
+  if (!h.last) { el.textContent = "The bot's radio has not heard anyone on the channel lately - send !ping to check it can hear you."; return; }
+  const ago = Math.max(0, Date.now() / 1000 - h.last);
+  el.textContent = "The bot's radio last heard someone on the channel " + (ago < 90 ? "just now" : ago < 5400 ? Math.round(ago / 60) + " min ago" : Math.round(ago / 3600) + " h ago")
     + " · " + h.senders_24h + " " + (h.senders_24h === 1 ? "person" : "people") + " in the last 24 h. Not getting through? Send !ping.";
 }
 function sibling() {

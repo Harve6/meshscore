@@ -171,6 +171,12 @@ class Hub:
             if replies:
                 self.reply(mod, inc, replies)
 
+    def heard_last(self, channel, window=86400):
+        """(unix time somebody was last heard on `channel` within `window`, or None; distinct senders in the window)."""
+        now = time.time()
+        seen = {n: t for n, t in self.heard.get(chan_key(channel), {}).items() if now - t <= window}
+        return (int(max(seen.values())) if seen else None), len(seen)
+
     def heard_summary(self, channel, window=86400):
         """(seconds since anyone was heard on `channel` or None, distinct senders heard within `window`)."""
         now = time.time()

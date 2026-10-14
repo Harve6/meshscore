@@ -139,13 +139,15 @@ class HttpPublisher:
     Only files that changed since the last successful upload are sent."""
 
     def __init__(self, api: str = "", token: str = "", min_interval: float = 3.0, clock=time.time, session=None,
-                 template_dir: str = TEMPLATE_DIR, label: str = "chess", timeout: float = 15.0):
+                 template_dir: str = TEMPLATE_DIR, label: str = "chess", timeout: float = 15.0, heartbeat: float = 600.0):
         self.api = (api or "").rstrip("/")
+        self.heartbeat = float(heartbeat)       # re-send state.json this often even if nothing changed ("still alive")
         self.token, self.min_interval, self.clock = token or "", float(min_interval), clock
         self.template_dir, self.label, self.timeout = template_dir, label, timeout
         self._session = session
         self.sent: dict[str, str] = {}          # file name -> digest of what the service has
         self.last_push = 0.0
+        self.last_ok = 0.0
         self.failures = 0
         self.pushed = 0
 
@@ -159,6 +161,20 @@ class HttpPublisher:
             import requests
             self._session = requests.Session()
         return self._session
+
+    def _put(self, payload):
+        """PUT; one immediate retry on a fresh connection (an idle keep-alive connection is often reset by the far end)."""
+        import requests
+        headers = {"Authorization": "Bearer " + self.token}
+        try:
+            return self.session.put(self.api + "/api/files", json=payload, timeout=self.timeout, headers=headers)
+        except requests.ConnectionError:
+            try:
+                self.session.close()
+            except Exception:
+                pass
+            self._session = None
+            return self.session.put(self.api + "/api/files", json=payload, timeout=self.timeout, headers=headers)
 
     def _page(self):
         try:
@@ -182,17 +198,19 @@ class HttpPublisher:
             digests = {n: hashlib.sha1(b).hexdigest() for n, b in body.items()}
             digests[STATE_FILE] = hashlib.sha1(json.dumps(stable, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
             changed = {n: b for n, b in body.items() if self.sent.get(n) != digests[n]}
-            if not changed or self.clock() - self.last_push < self.min_interval * (2 ** min(self.failures, 5)):
+            now = self.clock()
+            if not changed and self.heartbeat and self.last_ok and now - self.last_ok >= self.heartbeat:
+                changed = {STATE_FILE: body[STATE_FILE]}               # nothing new, but let the page know we are alive
+            if not changed or now - self.last_push < self.min_interval * (2 ** min(self.failures, 5)):
                 return False
-            self.last_push = self.clock()
+            self.last_push = now
             payload = {"files": {n: {"type": _mime(n), "b64": base64.b64encode(b).decode("ascii")} for n, b in changed.items()}}
-            r = self.session.put(self.api + "/api/files", json=payload, timeout=self.timeout,
-                                 headers={"Authorization": "Bearer " + self.token})
+            r = self._put(payload)
             if r.status_code != 200:
                 raise RuntimeError(f"HTTP {r.status_code} {r.text[:80]}")
             for n in changed:
                 self.sent[n] = digests[n]
-            self.failures, self.pushed = 0, self.pushed + 1
+            self.failures, self.pushed, self.last_ok = 0, self.pushed + 1, now
             return True
         except Exception as e:                                   # never let publishing take the game down
             self.failures += 1

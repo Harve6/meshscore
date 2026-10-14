@@ -135,3 +135,40 @@ def test_each_page_links_to_the_other_board_when_both_bots_run_together():
     assert p.site_state()["links"] == [{"title": "Mesh Chess", "url": "https://c.test/"}]
     CFG["modules"] = {"chess": {"enabled": True, "type": "chess", "channel": "#chess", "puzzle": False}}
     assert build_hub(Radio()).modules["chess"].site_state()["links"] == []
+
+
+def test_an_idle_board_still_sends_a_heartbeat_and_retries_a_reset_connection():
+    import requests
+    from meshscore.chessplay.publish import HttpPublisher
+    srv, got = serve()
+    try:
+        now = [1000.0]
+        pub = HttpPublisher(f"http://127.0.0.1:{srv.server_address[1]}", "t", min_interval=1, clock=lambda: now[0],
+                            template_dir=PAGE_DIR, heartbeat=600)
+        assert pub.tick({"updated": 1, "a": 1}) is True and len(got["puts"]) == 1
+        now[0] += 300
+        assert pub.tick({"updated": 2, "a": 1}) is False and len(got["puts"]) == 1          # idle: nothing to say yet
+        now[0] += 400
+        assert pub.tick({"updated": 3, "a": 1}) is True                                      # 700 s since the last upload
+        assert set(got["puts"][-1]["files"]) == {"state.json"}                                # only the "still alive" state
+        assert json.loads(base64.b64decode(got["puts"][-1]["files"]["state.json"]["b64"]))["updated"] == 3
+        # a stale keep-alive connection: the first attempt is reset, the second (fresh) one goes through
+        calls = {"n": 0}
+
+        class Flaky:
+            def __init__(self, real):
+                self.real = real
+
+            def put(self, *a, **k):
+                calls["n"] += 1
+                if calls["n"] == 1:
+                    raise requests.ConnectionError("reset")
+                return self.real.put(*a, **k)
+
+            def close(self):
+                pass
+        pub2 = HttpPublisher(f"http://127.0.0.1:{srv.server_address[1]}", "t", min_interval=0, clock=lambda: now[0],
+                             template_dir=PAGE_DIR, session=Flaky(requests.Session()))
+        assert pub2.tick({"updated": 1, "a": 9}) is True and pub2.failures == 0 and calls["n"] == 1 or calls["n"] == 2
+    finally:
+        srv.shutdown()

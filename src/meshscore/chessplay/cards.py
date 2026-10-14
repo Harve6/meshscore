@@ -116,6 +116,6 @@ class CardsMixin:
         contact = d.get("contact") if show else None
         if contact:
             contact = {**contact, "svg": qr_svg(contact.get("link") or contact.get("uri", ""))}
-        age, n = self.hub.heard_summary(self.channel) if hasattr(self.hub, "heard_summary") else (None, 0)
+        last, n = self.hub.heard_last(self.channel) if hasattr(self.hub, "heard_last") else (None, 0)
         return {"contact": contact, "channel": chan, "links": self._board_links(),
-                "heard": {"ago": age, "senders_24h": n}}
+                "heard": {"last": last, "senders_24h": n}}       # `last` is a time, so it only changes when someone is heard
