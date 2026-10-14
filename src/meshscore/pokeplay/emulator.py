@@ -16,8 +16,10 @@ ALIASES = {"u": "up", "d": "down", "l": "left", "r": "right", "sel": "select", "
 BOOT_FRAMES = 1500          # a fresh game is fast-forwarded through the logos to the title / intro
 WALK_FRAMES = 16            # holding a direction this long moves one tile
 TAP_FRAMES = 6
-TAP_GAP = 36               # frames between repeated A / B taps, so each text box can print first
-SETTLE_FRAMES = 60          # let fades, text printing and animations finish before looking (1 s of game time)
+TAP_GAP = 36               # at least this many frames between repeated A / B taps
+SETTLE_FRAMES = 30          # the minimum wait after an input ...
+SETTLE_CAP = 360            # ... and the most we wait (6 s of game time) for text to finish printing / animations to end
+STABLE_CHECKS = 4           # the picture must be unchanged for this many looks (9 frames apart) to count as "settled"
 
 
 def norm_button(word: str) -> str | None:
@@ -58,11 +60,37 @@ class GameBoy:
             hold = WALK_FRAMES * max(1, steps) + 2
             self.pb.button(button, hold)
             self.pb.tick(hold + SETTLE_FRAMES, False)
+            self._settle()
         else:
-            for i in range(max(1, steps) if button in ("a", "b") else 1):     # !a 8: several taps, text printing between
+            taps = max(1, steps) if button in ("a", "b") else 1
+            for i in range(taps):                                  # !a 8: several taps, each text box printed in full
                 self.pb.button(button, TAP_FRAMES)
-                self.pb.tick(TAP_FRAMES + (TAP_GAP if i < steps - 1 else SETTLE_FRAMES), False)
+                self.pb.tick(TAP_FRAMES + (TAP_GAP if i < taps - 1 else SETTLE_FRAMES), False)
+                self._settle(cap=SETTLE_CAP if i == taps - 1 else 150)
         self._unblank()
+
+    def _picture(self) -> bytes:
+        """The screen without its bottom-right corner, where the "more text" arrow blinks forever."""
+        a = self.pb.screen.ndarray.copy()
+        a[120:, 136:] = 0
+        return a.tobytes()
+
+    def _settle(self, cap: int = SETTLE_CAP):
+        """Let the game run (no input) until the picture stops changing: a text box finishes printing, a fade or
+        a walk animation ends. Without this the page showed half a sentence and people pressed again."""
+        waited, last, same = 0, None, 0
+        while waited < cap:
+            self.pb.tick(8, False)
+            self.pb.tick(1, True)
+            waited += 9
+            try:
+                pic = self._picture()
+            except Exception:
+                return
+            same = same + 1 if pic == last else 0
+            last = pic
+            if same >= STABLE_CHECKS:
+                return
 
     def _unblank(self, tries: int = 12):
         """A screen that is one flat colour is a fade between scenes: let the game run (no input) until it is not."""

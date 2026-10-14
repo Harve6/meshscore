@@ -142,3 +142,26 @@ def test_the_heard_field_is_stable_between_polls():
             await asyncio.sleep(1.2)
             assert r.m.site_state()["heard"] == a
     run(go())
+
+
+def test_text_has_finished_printing_when_the_picture_is_taken():
+    """Oak's intro used to show half-printed text boxes (people pressed again, or thought it was frozen)."""
+    rom = os.environ.get("MESHSCORE_POKEMON_ROM") or r"C:\Users\you\Downloads\pokemon-red-version-usa-europe-sgb-enhanced_20240821\Pokemon - Red Version (USA, Europe) (SGB Enhanced).gb"
+    if not os.path.isfile(rom):
+        pytest.skip("no ROM")
+    pytest.importorskip("pyboy")
+    from meshscore.pokeplay.emulator import GameBoy
+    g = GameBoy(rom, "")
+    try:
+        g.press("start")
+        g.press("a")
+        moving = 0
+        for _ in range(25):
+            g.press("a")
+            before = g._picture()
+            g.pb.tick(120, False)
+            g.pb.tick(1, True)
+            moving += g._picture() != before                 # still changing by itself after we looked
+        assert moving <= 1, f"{moving} of 25 screens were still printing"
+    finally:
+        g.close()
