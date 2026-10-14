@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import logging
 
+from ..core import fit
+
 log = logging.getLogger("meshscore")
 
 _svg_cache: dict = {}
@@ -86,6 +88,14 @@ class CardsMixin:
         if uri and curi:
             self._contact_ok = True
         self.state.save()
+
+    async def _help(self, inc, arg):
+        """!help: the commands, then the bot's own web page."""
+        out = [fit(f"[{self.tag} BOT] {self.help_text()} !mode !ping")]
+        url = str(getattr(self, "site_url", "") or "")
+        if url:
+            out.append(fit(f"[{self.tag}] {getattr(self, 'board_title', '') or 'Watch'}: {url}"))
+        return out
 
     def _board_links(self) -> list:
         """The other web boards run by bots in this same MeshScore (so each page can link to its sibling)."""
