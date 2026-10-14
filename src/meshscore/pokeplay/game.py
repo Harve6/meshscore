@@ -8,7 +8,8 @@ from __future__ import annotations
 
 from .emulator import BUTTONS, DIRECTIONS, norm_button
 
-MAX_STEPS = 8
+MAX_STEPS = 8            # tiles a d-pad vote can walk
+MAX_TAPS = 12            # times an A / B vote can be pressed (text boxes: !a 8)
 
 
 def new_round() -> dict:
@@ -21,8 +22,11 @@ def parse_vote(word: str, count: str = ""):
     if b is None:
         return None
     steps = 0
-    if b in DIRECTIONS and str(count).strip().isdigit():
-        steps = max(1, min(MAX_STEPS, int(str(count).strip())))
+    if str(count).strip().isdigit():
+        if b in DIRECTIONS:
+            steps = max(1, min(MAX_STEPS, int(str(count).strip())))
+        elif b in ("a", "b"):                      # !a 8 - clicks through eight text boxes in one vote
+            steps = max(1, min(MAX_TAPS, int(str(count).strip())))
     return b, steps
 
 
@@ -56,4 +60,4 @@ def label(action: tuple[str, int]) -> str:
     return f"{b}x{s}" if s else b
 
 
-__all__ = ["BUTTONS", "MAX_STEPS", "new_round", "parse_vote", "vote", "tally", "winner", "label"]
+__all__ = ["BUTTONS", "MAX_STEPS", "MAX_TAPS", "new_round", "parse_vote", "vote", "tally", "winner", "label"]

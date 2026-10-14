@@ -55,7 +55,7 @@ Create the channel in the MeshCore app first, then restart MeshScore.
 | | |
 |---|---|
 | `!up` `!down` `!left` `!right` | the d-pad (`!u !d !l !r` too). Add a number to walk further: `!left 4` |
-| `!a` `!b` `!start` `!select` | the buttons |
+| `!a` `!b` `!start` `!select` | the buttons. `!a 8` taps A eight times in one vote (clicks through text boxes) |
 | `!press <button> [n]` | the long form (`!p` for short) |
 | `!where` (or just `!pokemon`) | where you are, the lead Pokemon, badges, Pokedex |
 | `!game` / `!game blue` | which game is being played / vote for it while the daily vote is open |

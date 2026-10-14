@@ -132,8 +132,10 @@ def test_votes_tally_ties_changes_and_steps():
     assert pg.vote(r, "Bob", "a") == ("a", 0)
     assert pg.vote(r, "Cy", "dance") is None
     assert pg.vote(r, "Di", "right", "99") == ("right", pg.MAX_STEPS)
-    assert pg.vote(r, "Ed", "a", "3") == ("a", 0)                  # a count only means something for the d-pad
-    assert pg.tally(r)[0] == (("a", 0), 2)
+    assert pg.vote(r, "Ed", "a", "3") == ("a", 3)                  # a count on A / B means that many taps (text boxes)
+    assert pg.vote(r, "Fy", "start", "3") == ("start", 0)          # ... but not on start / select
+    assert pg.vote(r, "Gus", "a", "99") == ("a", pg.MAX_TAPS)
+    assert pg.tally(r)[0] == (("up", 5), 1)                        # all different: the earliest vote leads
     pg.vote(r, "Bob", "up", "5")                                    # Bob changes his mind: up x5 now leads
     assert pg.winner(r) == (("up", 5), 2)
     assert pg.label(("up", 5)) == "upx5" and pg.label(("a", 0)) == "a"

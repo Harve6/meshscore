@@ -16,6 +16,7 @@ ALIASES = {"u": "up", "d": "down", "l": "left", "r": "right", "sel": "select", "
 BOOT_FRAMES = 1500          # a fresh game is fast-forwarded through the logos to the title / intro
 WALK_FRAMES = 16            # holding a direction this long moves one tile
 TAP_FRAMES = 6
+TAP_GAP = 36               # frames between repeated A / B taps, so each text box can print first
 SETTLE_FRAMES = 60          # let fades, text printing and animations finish before looking (1 s of game time)
 
 
@@ -55,10 +56,12 @@ class GameBoy:
     def press(self, button: str, steps: int = 1):
         if button in DIRECTIONS:
             hold = WALK_FRAMES * max(1, steps) + 2
+            self.pb.button(button, hold)
+            self.pb.tick(hold + SETTLE_FRAMES, False)
         else:
-            hold = TAP_FRAMES
-        self.pb.button(button, hold)
-        self.pb.tick(hold + SETTLE_FRAMES, False)
+            for i in range(max(1, steps) if button in ("a", "b") else 1):     # !a 8: several taps, text printing between
+                self.pb.button(button, TAP_FRAMES)
+                self.pb.tick(TAP_FRAMES + (TAP_GAP if i < steps - 1 else SETTLE_FRAMES), False)
         self._unblank()
 
     def _unblank(self, tries: int = 12):

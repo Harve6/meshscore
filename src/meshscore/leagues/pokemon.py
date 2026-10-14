@@ -250,7 +250,7 @@ class PokemonModule(CardsMixin, LeaguePlugin):
             self.state.save()
             return
         (button, steps), n = win
-        use = (steps or self.steps) if button in DIRECTIONS else 1
+        use = (steps or self.steps) if button in DIRECTIONS else (steps or 1) if button in ("a", "b") else 1
         async with self._lock:
             try:
                 status, png = await asyncio.to_thread(self._play, button, use)
@@ -370,7 +370,7 @@ class PokemonModule(CardsMixin, LeaguePlugin):
 
     def help_text(self):
         extra = " | !game <name>" if self.multi else ""
-        return "!up !down !left !right !a !b !start !select (+n: !up 5) | !where !party !votes !log !top" + extra
+        return "!up !down !left !right !a !b !start !select (+n: !up 5, !a 8) | !where !party !votes !log !top" + extra
 
     def status_extra(self):
         return f" | rounds {self.state.data.get('rounds', 0)}" + (f" | DOWN: {self.problem}" if not self.gb else "")
