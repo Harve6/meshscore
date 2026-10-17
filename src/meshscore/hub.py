@@ -13,6 +13,7 @@ from .sameair import AirBudget, SameAir
 log = logging.getLogger("meshscore")
 
 TX_RETRY_WAIT = 2      # seconds before the one retry of a failed transmission
+TX_FAIL_RECONNECT = 3  # this many messages in a row that could not be sent: the radio link is dead - reconnect it
 ALERT_TTL = 900        # an alert still queued after this long (radio was down) is stale news - dropped (finals are kept)
 REPLY_TTL = 120        # likewise for an answer to a command nobody is waiting for any more
 
@@ -41,6 +42,7 @@ class Hub:
         self.started = time.time()
         self.booted = False
         self.same_air = SameAir(path=CFG.get("same_air_state") or None)   # listen-before-send dedupe with other bots
+        self.tx_fail_streak = 0                                            # consecutive messages that failed to send
         self.heard = {}        # chan_key -> {sender name: last time heard}: lets a web page say the radio is hearing people
         self.airtime = AirBudget()                                         # optional messages-per-hour cap
 
@@ -104,6 +106,14 @@ class Hub:
                 await asyncio.sleep(TX_RETRY_WAIT)
             if ok and kind == "chan":
                 self.airtime.record()
+            if kind == "chan":                       # (a DM to someone not in the contacts is not a dead radio)
+                self.tx_fail_streak = 0 if ok else self.tx_fail_streak + 1
+            if self.tx_fail_streak >= TX_FAIL_RECONNECT and self.t.alive:
+                # the port is open but the radio refuses everything (hung, unplugged and replugged, cold battery ...):
+                # drop the link so the supervisor reconnects - until now this stayed "alive" and silent for a day
+                log.error("%d transmissions in a row failed - resetting the radio link", self.tx_fail_streak)
+                self.tx_fail_streak = 0
+                self.t.alive = False
             log.info("TX %s%s: %s", "OK " if ok else "FAIL ", f"[DM {dest[:6]}]" if kind == "dm" else f"[{dest}]", text)
             await asyncio.sleep(CFG["send_gap"])
 

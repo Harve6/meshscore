@@ -229,13 +229,20 @@ class LibTransport(Transport):
                 return {**c, "public_key": pk}
         return None
 
+    def _sent_ok(self, r) -> bool:
+        """True when the radio accepted the message; logs what it said when it did not."""
+        if r is not None and r.type != self.ET.ERROR:
+            return True
+        log.warning("The radio refused a message: %s", getattr(r, "payload", None) if r is not None else "no answer")
+        return False
+
     async def send_channel(self, channel, text):
         idx = self.chans.get(chan_key(channel))
         if idx is None:
             log.warning("TX to unknown channel %s", channel)
             return False
         r = await self.mc.commands.send_chan_msg(idx, text)
-        return r is not None and r.type != self.ET.ERROR
+        return self._sent_ok(r)
 
     async def send_dm(self, key, text):
         c = self.find_contact(key=key)
@@ -246,7 +253,7 @@ class LibTransport(Transport):
             log.warning("DM failed: %s not in contacts", key[:12])
             return False
         r = await self.mc.commands.send_msg(c, text)
-        return r is not None and r.type != self.ET.ERROR
+        return self._sent_ok(r)
 
     async def own_contact_uri(self):
         """The radio's own contact card as the MeshCore app's QR code carries it ("meshcore://<hex>")."""
