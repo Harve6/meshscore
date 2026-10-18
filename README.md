@@ -36,6 +36,8 @@ mesh - including **more than one bot on the same air** ([how that works](docs/sa
 * **Quiet by default**: no "I'm online!" spam on restarts, no replaying of games that were already over.
 * **Real-data tests**: the alert logic is replayed against real past games (see [Testing](#testing)).
 
+> **Running it day to day?** See [docs/runbook.md](docs/runbook.md): health check, restart, backups, fixes.
+
 ## Quick start
 
 You need a MeshCore **companion** radio (USB, Bluetooth or WiFi firmware), a computer that stays on, and Python 3.10+.

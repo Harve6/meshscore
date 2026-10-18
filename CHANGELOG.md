@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+* **Running it without help:** `meshscore health` (bot, radio link, sending, crashes, each web board, backups, disk;
+  exit code 1 = needs a hand), `meshscore backup` / `--restore`, `run --forever` (restarts itself after an error and logs
+  why), and `windows/daily-check.ps1` (backup + health + a Windows notification on problems). See docs/runbook.md.
+* A radio that stops accepting messages (hung / replugged) is reset after 3 failed posts; the radio's refusal is logged.
+* Pokemon waits for text to finish printing before taking the picture; chess accepts `g1 f3`, `knight e3`, numbered
+  choices; board uploads no longer churn and idle boards send a heartbeat.
 * **Pokemon: Red, Blue and Yellow with a daily game vote.** `[bots.pokemon.roms]` lists several ROMs; each keeps its own
   save, and once a day the channel votes (`!game blue`) which one to play. Yellow's different memory layout is
   handled (verified against the real ROMs). `!switch` for admins. The page shows the game and the live vote.

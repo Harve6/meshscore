@@ -8,6 +8,7 @@ import os
 import re
 import socket
 import sys
+import time
 
 from . import __version__, config
 from .config import ConfigError
@@ -477,11 +478,71 @@ def cmd_run(args):
         print("\nAnother copy of MeshScore is already running on this computer (only one program can use the radio).")
         return 1
     from .radio import LibTransport
-    try:
-        asyncio.run(amain(LibTransport()))
-    except KeyboardInterrupt:
-        log.info("Shutting down")
+    delay = 15
+    while True:
+        started = time.time()
+        try:
+            asyncio.run(amain(LibTransport()))
+            return 0
+        except KeyboardInterrupt:
+            log.info("Shutting down")
+            return 0
+        except Exception:
+            # without --forever this ends the program (exit code 1); the reason is in meshscore.log either way
+            log.exception("MeshScore stopped because of an unexpected error")
+            if not getattr(args, "forever", False):
+                return 1
+        delay = 15 if time.time() - started > 600 else min(delay * 2, 300)   # crashing again quickly: back off
+        log.warning("Restarting in %d s (run --forever)", delay)
+        try:
+            time.sleep(delay)
+        except KeyboardInterrupt:
+            return 0
+
+
+def cmd_health(args):
+    """meshscore health: is everything fine? Exit code 0 = yes, 1 = something needs a hand."""
+    from . import ops
+    path = config.load_config(args.config)
+    if not path:
+        print("No meshscore.toml found.")
+        return 2
+    data_dir = args.data_dir or os.path.dirname(os.path.abspath(path))
+    checks = ops.health(data_dir, CFG)
+    if args.summary:
+        print(ops.summary_line(checks))
+    else:
+        print(ops.report(checks))
+    return 1 if any(c.level == "fail" for c in checks) else 0
+
+
+def cmd_backup(args):
+    """meshscore backup: zip the settings + game/bot state into backups/ (keeps the newest 14).
+    meshscore backup --restore FILE: put a backup back (stop the bot first)."""
+    from . import ops
+    path = config.find_config(args.config)
+    if not path:
+        print("No meshscore.toml found.")
+        return 2
+    data_dir = args.data_dir or os.path.dirname(os.path.abspath(path))
+    if args.restore:
+        if ops_running():
+            print("Stop the bot first:  Stop-ScheduledTask -TaskName MeshScore")
+            return 1
+        names = ops.restore_backup(args.restore, data_dir)
+        print(f"Restored {len(names)} files from {args.restore} (the replaced ones are kept as *.bak):")
+        for n in names:
+            print("  " + n)
+        return 0
+    zp = ops.make_backup(data_dir, args.dir or "", keep=args.keep)
+    print(f"Backup written: {zp}")
     return 0
+
+
+def ops_running():
+    from . import ops
+    config.load_config(config.find_config())
+    return ops.bot_running(int(CFG.get("instance_port", 0) or 0))
 
 
 # ---------------------------------------------------------------- check
@@ -670,7 +731,22 @@ def build_parser():
     p.add_argument("--data-dir", help="where state and log files go (default: next to the config file)")
     p.add_argument("--quiet", action="store_true", help="no 'active' message in the channels at start (default)")
     p.add_argument("--announce", action="store_true", help="post an 'active' message in each channel at start")
+    p.add_argument("--forever", action="store_true", help="restart by itself after an unexpected error (for services)")
     p.set_defaults(fn=cmd_run)
+
+    p = sub.add_parser("health", help="is the bot, the radio and every web board OK? (exit code 1 = needs a hand)")
+    add_cfg(p)
+    p.add_argument("--data-dir", help="where state and log files are (default: next to the config file)")
+    p.add_argument("--summary", action="store_true", help="one line only")
+    p.set_defaults(fn=cmd_health)
+
+    p = sub.add_parser("backup", help="zip settings + game/bot state into backups/ (or --restore one)")
+    add_cfg(p)
+    p.add_argument("--data-dir", help="where state files are (default: next to the config file)")
+    p.add_argument("--dir", help="where to put the zip (default: <data dir>/backups)")
+    p.add_argument("--keep", type=int, default=14, help="how many backups to keep (default 14)")
+    p.add_argument("--restore", metavar="ZIP", help="restore this backup (the bot must be stopped)")
+    p.set_defaults(fn=cmd_backup)
 
     p = sub.add_parser("init", help="interactive setup: radio, channels, teams -> meshscore.toml")
     p.add_argument("-o", "--output", default=config.CONFIG_NAME, help="where to write the config")

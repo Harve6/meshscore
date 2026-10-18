@@ -34,3 +34,8 @@ htmlcov/
 .wrangler/
 node_modules/
 .dev.vars
+
+# backups hold meshscore.toml (upload tokens) and the game saves: keep them off GitHub
+backups/
+health-latest.txt
+health-history.log
