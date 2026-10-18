@@ -62,15 +62,16 @@ def parse(text):
     except tomllib.TOMLDecodeError as e:
         raise ConfigError(f"Not valid TOML: {e}") from None
     out = {}
-    unknown = [k for k in raw if k not in ("radio", "bot", "hockeytech", "same_air", "airtime", "bots", "plugins")]
+    known = ("radio", "bot", "hockeytech", "same_air", "airtime", "alerts", "bots", "plugins")
+    unknown = [k for k in raw if k not in known]
     if unknown:
-        raise ConfigError(f"Unknown section(s): {', '.join(unknown)}. Known: radio, bot, hockeytech, same_air, airtime, bots, plugins")
+        raise ConfigError(f"Unknown section(s): {', '.join(unknown)}. Known: {', '.join(known)}")
     for section, keys in (("radio", RADIO_KEYS), ("bot", BOT_KEYS), ("hockeytech", HOCKEYTECH_KEYS)):
         for k, v in (raw.get(section) or {}).items():
             if k not in keys:
                 raise ConfigError(f"[{section}] has no setting called {k!r}. Known: {', '.join(sorted(keys))}")
             out[k] = v
-    for section in ("same_air", "airtime"):
+    for section in ("same_air", "airtime", "alerts"):
         sect = raw.get(section) or {}
         bad = [k for k in sect if k not in DEFAULTS[section]]
         if bad:
@@ -140,7 +141,7 @@ def load_config(path=None, strict=False):
     with open(path, encoding="utf-8") as f:
         user = parse(f.read())
     for k, v in user.items():
-        CFG[k] = {**CFG[k], **v} if k in ("same_air", "airtime") else v
+        CFG[k] = {**CFG[k], **v} if k in ("same_air", "airtime", "alerts") else v
     if strict:
         bad = problems()
         if bad:

@@ -79,8 +79,16 @@ DEFAULTS = {
     "airtime": {
         "max_per_hour": 0,            # alert messages per hour across all channels (0 = no limit)
     },
+    # --- phone / chat alerts when the bot needs a hand (`meshscore health --notify`) ---
+    "alerts": {
+        "ntfy_topic": "",             # a private topic name for ntfy.sh (install the ntfy app and subscribe to it)
+        "ntfy_server": "https://ntfy.sh",
+        "discord_webhook": "",        # a Discord channel webhook URL
+        "repeat_hours": 6,            # remind again this often while it is still broken
+    },
 }
-CFG = {**DEFAULTS, "modules": {}, "same_air": dict(DEFAULTS["same_air"]), "airtime": dict(DEFAULTS["airtime"])}
+CFG = {**DEFAULTS, "modules": {}, "same_air": dict(DEFAULTS["same_air"]), "airtime": dict(DEFAULTS["airtime"]),
+       "alerts": dict(DEFAULTS["alerts"])}
 TZ = None
 
 # Starts of messages the bot itself (or another MeshScore bot) posts - never treated as commands.

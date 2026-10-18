@@ -39,3 +39,4 @@ node_modules/
 backups/
 health-latest.txt
 health-history.log
+health-state.json

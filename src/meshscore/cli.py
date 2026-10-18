@@ -508,11 +508,24 @@ def cmd_health(args):
         print("No meshscore.toml found.")
         return 2
     data_dir = args.data_dir or os.path.dirname(os.path.abspath(path))
+    if args.test_alert:
+        errs = ops.notify(CFG["alerts"], "MeshScore test", "Test alert from `meshscore health --test-alert`. "
+                          "If you can read this, phone / chat alerts work.")
+        configured = CFG["alerts"].get("ntfy_topic") or CFG["alerts"].get("discord_webhook")
+        print("No alert target is set: add ntfy_topic or discord_webhook under [alerts]." if not configured
+              else ("Test alert sent." if not errs else "Could not send: " + "; ".join(errs)))
+        return 0 if configured and not errs else 1
     checks = ops.health(data_dir, CFG)
-    if args.summary:
+    sent = ops.health_notify(data_dir, CFG["alerts"], checks) if args.notify else ""
+    if args.quiet:
+        if sent:
+            print(sent)                          # the watchdog shows this as a Windows notification
+    elif args.summary:
         print(ops.summary_line(checks))
     else:
         print(ops.report(checks))
+        if sent:
+            print("Alert sent: " + sent)
     return 1 if any(c.level == "fail" for c in checks) else 0
 
 
@@ -738,6 +751,10 @@ def build_parser():
     add_cfg(p)
     p.add_argument("--data-dir", help="where state and log files are (default: next to the config file)")
     p.add_argument("--summary", action="store_true", help="one line only")
+    p.add_argument("--notify", action="store_true",
+                   help="send a phone/chat alert (see [alerts]) when the state changes: broken, still broken, recovered")
+    p.add_argument("--quiet", action="store_true", help="print nothing unless an alert was sent (for schedulers)")
+    p.add_argument("--test-alert", action="store_true", help="send a test message to the [alerts] targets and exit")
     p.set_defaults(fn=cmd_health)
 
     p = sub.add_parser("backup", help="zip settings + game/bot state into backups/ (or --restore one)")

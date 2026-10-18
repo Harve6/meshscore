@@ -218,6 +218,83 @@ def _fetch_json(url: str) -> dict:
     return r.json()
 
 
+# ---------------------------------------------------------------- phone / chat alerts
+ALERT_STATE = "health-state.json"
+
+
+def notify(alerts: dict, title: str, text: str, urgent: bool = False, post=None) -> list[str]:
+    """Send `text` to ntfy.sh and/or a Discord webhook (whichever are configured). Returns what went wrong, if
+    anything ([] = every configured channel accepted it). `post(url, **kw)` can be replaced in tests."""
+    import requests
+    post = post or (lambda url, **kw: requests.post(url, timeout=15, **kw))
+    problems = []
+    topic = str((alerts or {}).get("ntfy_topic") or "").strip()
+    if topic:
+        server = str(alerts.get("ntfy_server") or "https://ntfy.sh").rstrip("/")
+        try:
+            r = post(f"{server}/{topic}", data=text.encode("utf-8"),
+                     headers={"Title": title, "Priority": "high" if urgent else "default",
+                              "Tags": "rotating_light" if urgent else "white_check_mark"})
+            if r.status_code >= 300:
+                problems.append(f"ntfy: HTTP {r.status_code}")
+        except Exception as e:
+            problems.append(f"ntfy: {str(e)[:80]}")
+    hook = str((alerts or {}).get("discord_webhook") or "").strip()
+    if hook:
+        try:
+            r = post(hook, json={"content": f"**{title}**\n{text}"})
+            if r.status_code >= 300:
+                problems.append(f"discord: HTTP {r.status_code}")
+        except Exception as e:
+            problems.append(f"discord: {str(e)[:80]}")
+    return problems
+
+
+def health_notify(data_dir: str, alerts: dict, checks: list[Check], now: float | None = None, post=None) -> str:
+    """Tell the owner when the situation CHANGES: broken, still broken (a reminder every `repeat_hours`), recovered.
+    Returns the message sent ("" when nothing needed saying). State lives in health-state.json."""
+    import json
+    now = time.time() if now is None else now
+    path = os.path.join(data_dir, ALERT_STATE)
+    try:
+        with open(path, encoding="utf-8") as f:
+            st = json.load(f)
+    except (OSError, ValueError):
+        st = {}
+    bad = [c for c in checks if c.level == "fail"]
+    cur = "fail" if bad else "ok"
+    prev = st.get("status", "ok")
+    msg = ""
+    if cur == "fail":
+        detail = summary_line(checks)
+        repeat = float((alerts or {}).get("repeat_hours", 6) or 0) * 3600
+        if prev != "fail":
+            msg = f"MeshScore needs a hand: {detail}"
+            st = {"status": "fail", "since": now, "last_sent": now, "summary": detail}
+        elif repeat and now - float(st.get("last_sent", 0)) >= repeat:
+            msg = f"Still broken ({_ago(now - float(st.get('since', now))).replace(' ago', '')}): {detail}"
+            st["last_sent"] = now
+        else:
+            st["summary"] = detail
+    elif prev == "fail":
+        msg = f"MeshScore is back to normal (was down {_ago(now - float(st.get('since', now))).replace(' ago', '')})"
+        st = {"status": "ok", "since": now}
+    else:
+        st = {"status": "ok", "since": st.get("since", now)}
+    if msg:
+        errs = notify(alerts, "MeshScore", msg, urgent=cur == "fail", post=post)
+        if errs:                                             # it did not go out: try again next time, do not lose the news
+            st["last_sent"] = 0 if cur == "fail" else st.get("last_sent", 0)
+            if cur == "ok":
+                st = {"status": "fail", "since": st.get("since", now), "last_sent": 0, "summary": "recovered (alert pending)"}
+            msg = f"{msg}  [could not send: {'; '.join(errs)}]"
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(st, f)
+    os.replace(tmp, path)
+    return msg
+
+
 def report(checks: list[Check]) -> str:
     lines = [f"[{c.mark}] {c.name:<14} {c.detail}" for c in checks]
     bad = [c for c in checks if c.level == "fail"]
