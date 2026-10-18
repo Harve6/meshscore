@@ -22,10 +22,11 @@ h2 { font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: 
 .grid { display: grid; grid-template-columns: minmax(0, 560px) minmax(0, 1fr); gap: 16px; align-items: start; }
 @media (max-width: 760px) { .grid { grid-template-columns: minmax(0, 1fr); } }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
-.board { display: grid; grid-template-columns: repeat(8, 1fr); width: 100%; aspect-ratio: 1; border-radius: 4px; overflow: hidden;
+.board { display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); width: 100%; aspect-ratio: 1; border-radius: 4px; overflow: hidden;
          border: 1px solid var(--line); user-select: none; }
-.sq { position: relative; display: flex; align-items: center; justify-content: center; font-size: clamp(22px, 7.4vw, 52px); line-height: 1; }
+.sq { position: relative; min-width: 0; min-height: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: clamp(22px, 7.4vw, 52px); line-height: 1; }
 .board.small .sq { font-size: clamp(14px, 4.4vw, 30px); }
+.board.small .sq .f, .board.small .sq .r { font-size: 10px; opacity: .95; }
 .sq.l { background: var(--light); } .sq.d { background: var(--dark); }
 .sq.hl::after { content: ""; position: absolute; inset: 0; background: var(--hl); }
 .sq.chk::after { content: ""; position: absolute; inset: 0; background: radial-gradient(circle, var(--check) 20%, transparent 75%); }
@@ -89,7 +90,9 @@ footer { color: var(--muted); font-size: .85rem; margin: 18px 0 8px; }
           <div>
             <div class="big" id="puzhead"></div>
             <p class="muted" id="puzsolved"></p>
-            <p>Answer over the mesh: <code>!puzzle &lt;move&gt;</code> (3 tries). <code>!answer</code> shows the solution.</p>
+            <p class="muted" id="puzside"></p>
+            <p>Answer <b>by DM</b> to the bot: <code>!puzzle &lt;move&gt;</code> (3 tries), e.g. <code>!puzzle g1 f3</code>.
+              <code>!answer</code> (by DM) shows the solution. Answers sent on the channel are not checked, so nobody can copy them.</p>
           </div>
         </div>
       </div>
@@ -125,7 +128,7 @@ footer { color: var(--muted); font-size: .85rem; margin: 18px 0 8px; }
       <div class="card"><h2>Last games</h2><div id="history" class="muted">None yet</div></div>
     </div>
   </div>
-  <footer>Updated <span id="updated">-</span>. A MeshScore bot; the board refreshes about every minute.<br><span id="heard"></span></footer>
+  <footer>Updated <span id="updated">-</span>. A MeshScore bot; the board refreshes every 15 seconds.<br><span id="heard"></span></footer>
 </main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
@@ -162,7 +165,7 @@ function drawBoard(el, fen, opts = {}) {
         s.textContent = GLYPH[piece.toLowerCase()] + "︎";
         sq.appendChild(s);
       }
-      if (!opts.small) {
+      {                                                    // coordinates on every board
         if (f === 0) { const e = document.createElement("span"); e.className = "r"; e.textContent = rank + 1; sq.appendChild(e); }
         if (r === 7) { const e = document.createElement("span"); e.className = "f"; e.textContent = "abcdefgh"[file]; sq.appendChild(e); }
       }
@@ -245,6 +248,9 @@ function render() {
     const p = state.puzzle;
     drawBoard($("puzboard"), p.fen, {flip: p.side === "black", small: true});
     $("puzhead").textContent = (p.side === "white" ? "White" : "Black") + " to move - rating " + p.rating;
+    $("puzside").textContent = p.side === "black"
+      ? "You play Black, so the board is turned around: Black at the bottom, rank 8 nearest you, files h to a."
+      : "You play White: White at the bottom, as usual.";
     $("puzsolved").textContent = p.solved.length ? "Solved by: " + p.solved.join(", ") : "Nobody has solved it yet.";
   } else pc.hidden = true;
   renderChannel();

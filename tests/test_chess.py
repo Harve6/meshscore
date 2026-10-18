@@ -723,27 +723,43 @@ def test_daily_puzzle_is_posted_once_in_its_hour_and_quiet_otherwise(monkeypatch
     run(go())
 
 
-def test_puzzle_commands_through_the_hub_do_not_leak_the_answer(monkeypatch):
+def test_puzzle_answers_go_by_dm_and_the_channel_only_hears_who_solved_it(monkeypatch):
     async def go():
         async with Rig(puzzle=False, opponent=Scripted()) as r:
             r.m.state.data["puzzle"] = puzzle_dict()
             r.m.state.data["puzzle_date"] = "2026-10-14"
             await r.tick()
             r.take()
-            await r.say("!puzzle")
-            assert "Black to move" in r.t.sent[-1]
+            await r.say("!puzzle")                                       # the puzzle itself is fine on the channel
+            assert "Black to move" in r.t.sent[-1] and "by DM" in r.t.sent[-1]
+            # an answer on the channel is NOT checked - nobody learns whether Rb8 is right
             await r.say("!puzzle Rb8", name="Ann")
-            assert "Rb8 ✓" in r.t.sent[-1] and "d7" in r.t.sent[-1]
-            await r.say("!puzzle Rf8", name="Bob")
-            assert "2 tries left" in r.t.sent[-1]
-            await r.say("!puzzle b2", name="Ann")
-            await r.say("!puzzle b1=Q", name="Ann")
-            assert "Ann solved it" in r.t.sent[-1]
+            assert "send puzzle answers to me by DM" in r.t.sent[-1] and "✓" not in r.t.sent[-1]
+            assert r.m.state.data["puzzle"]["progress"] == {}
+            n = len(r.t.sent)
+            await r.say("!puzzle Rb8", name="Ann")                       # the hint is not repeated straight away
+            assert len(r.t.sent) == n
+            await r.say("!answer", name="Ann")                           # nor is the solution posted for everyone
+            assert not any("Rb8 2.d7" in x for x in r.t.sent)
+            # by DM it all works, and the replies are DMs
+            await r.say("!puzzle Rb8", name="Ann", dm=True, key="aa" * 16)
+            assert "Rb8 ✓" in r.t.dms[-1][1] and "d7" in r.t.dms[-1][1]
+            await r.say("!puzzle", name="Ann", dm=True, key="aa" * 16)    # where am I?
+            assert "your line: 1...Rb8 2.d7" in r.t.dms[-1][1] and "3 tries left" in r.t.dms[-1][1]
+            await r.say("!puzzle Rf8", name="Bob", dm=True, key="bb" * 16)
+            assert "2 tries left" in r.t.dms[-1][1]
+            await r.say("!puzzle b2", name="Ann", dm=True, key="aa" * 16)
+            sent_before = list(r.t.sent)
+            await r.say("!puzzle b1=Q", name="Ann", dm=True, key="aa" * 16)
+            assert "solved" in r.t.dms[-1][1]
+            new_posts = r.t.sent[len(sent_before):]
+            assert any("Ann solved today's puzzle" in x for x in new_posts)
+            assert not any("b1" in x or "Rb8" in x for x in new_posts)    # who, never how
             assert r.m.state.data["players"]["Ann"]["puzzles"] == 1
             s = json.dumps(r.m.site_state())
             assert "solution" not in s and "b2b1q" not in s and '"Ann"' in s
-            await r.say("!answer")
-            assert "Rb8" in " ".join(r.t.sent[-2:])
+            await r.say("!answer", name="Bob", dm=True, key="bb" * 16)
+            assert "1...Rb8 2.d7" in " ".join(t for _, t in r.t.dms[-2:])
     run(go())
 
 

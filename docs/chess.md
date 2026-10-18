@@ -52,8 +52,8 @@ Create the channel in the MeshCore app first (the bot needs `#chess` on its radi
 | `!board` (or just `!chess`) | game number, level, last moves, vote counts, time left |
 | `!moves` | the legal moves. `!moves g1` = what the piece on g1 can do; `!moves knight` = that piece type |
 | `!top` | the crowd's record and who picks the winning moves |
-| `!puzzle` / `!puzzle Qh5` | the daily puzzle / an answer (3 tries; a multi-move puzzle replies with the opponent's move) |
-| `!answer` | the puzzle's solution |
+| `!puzzle` / `!puzzle Qh5` | the daily puzzle / an answer - **answers by DM only** (3 tries; a multi-move puzzle replies with the opponent's move). On the channel an answer is not checked and the sender is told to DM it, so nobody can copy it. When someone solves it, the channel hears *who*, not how |
+| `!answer` | the puzzle's solution, by DM |
 | `!newgame [level]` | admins: abandon this game and start a new one |
 | `!mode max\|min\|off` | `min` skips the per-move posts and sends only results and the puzzle |
 

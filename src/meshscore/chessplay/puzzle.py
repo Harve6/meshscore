@@ -77,10 +77,11 @@ def attempt(puz: dict, solver: str, text: str) -> dict:
     return {"status": "right", "san": san, "reply_san": reply_san}
 
 
-def answer_text(puz: dict) -> str:
+def answer_text(puz: dict, upto: int | None = None) -> str:
+    """The solution in SAN ("1...Rb8 2.d7 Rb2"), or only its first `upto` plies (a solver's line so far)."""
     b = chess.Board(puz["fen"])
     out = []
-    for u in puz["solution"]:
+    for u in puz["solution"][:upto]:
         mv = chess.Move.from_uci(u)
         num = f"{b.fullmove_number}." if b.turn == chess.WHITE else (f"{b.fullmove_number}..." if not out else "")
         out.append(f"{num}{b.san(mv)}")

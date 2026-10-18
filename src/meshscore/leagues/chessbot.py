@@ -1,9 +1,10 @@
 """Crowd-vs-bot chess on a MeshCore channel: everybody votes a move, the bot answers, the level climbs with each win.
 
-How a round goes: the first `!move` of a round starts a clock (default 5 minutes); everyone who votes in that time
-counts, the most popular move is played (ties: earliest first vote), then the bot replies - one channel post per
-round. Players get answers by DM when the radio knows them, so the channel carries moves and results only. A web
-board (`site_dir`, a GitHub Pages clone) shows the position, the votes and the daily puzzle. See docs/chess.md.
+How a round goes: the first `!move` of a round starts a clock (`window_minutes`, default 5); everyone who votes in that
+time counts, the most popular move is played (ties: earliest first vote), then the bot replies - one channel post per
+round. Players get answers by DM when the radio knows them, so the channel carries moves and results only. Daily
+puzzle answers are taken by DM only, so nobody can copy them off the channel. A web board (a Cloudflare Worker,
+`site_api`, or a GitHub Pages clone, `site_dir`) shows the position, the votes and the puzzle. See docs/chess.md.
 """
 from __future__ import annotations
 
@@ -64,6 +65,7 @@ class ChessModule(CardsMixin, LeaguePlugin):
         self.busy = False
         self._anon = 0
         self._pending = {}        # voter -> (ply, [uci...]): the choices offered after an ambiguous move
+        self._dm_hint = {}        # voter -> when they were last told "puzzle answers go by DM"
         self._cards_init()
         d = self.state.data
         d.setdefault("level", max(0, min(int(c.get("start_level", 1)) - 1, self.max_level)))
@@ -249,7 +251,7 @@ class ChessModule(CardsMixin, LeaguePlugin):
     def puzzle_text(self, puz) -> str:
         url = f" {self._url()}" if self._url() else ""
         side = puz["side"].capitalize()
-        return fit(f"🧩 Daily puzzle ({puz['rating']}): {side} to move, find the best move. !puzzle <move>{url}")
+        return fit(f"🧩 Daily puzzle ({puz['rating']}): {side} to move. Answer by DM: !puzzle <move>{url}")
 
     # ---------------------------------------------------------------- commands
     def extra_commands(self):
@@ -258,7 +260,7 @@ class ChessModule(CardsMixin, LeaguePlugin):
                 "!newgame": self.cmd_newgame}
 
     def help_text(self):
-        return "!move <e4|Nf3|g1 f3> vote | !board | !moves [g1] | !puzzle <move> | !answer | !top"
+        return "!move <e4|Nf3|g1 f3> vote | !board | !moves [g1] | !top | puzzle by DM: !puzzle <move>, !answer"
 
     def status_extra(self):
         g = self.state.data.get("game") or {}
@@ -356,17 +358,36 @@ class ChessModule(CardsMixin, LeaguePlugin):
             text += " | puzzles: " + ", ".join(f"{n} {c}" for n, c in pz_top)
         return [fit(text)]
 
+    def _dm_only(self, inc, what) -> list:
+        """A puzzle answer sent on the channel is not checked (others would see the verdict) - point at DMs, at most
+        once every 10 minutes per person."""
+        who = self._voter(inc)
+        now = self.clock()
+        if now - self._dm_hint.get(who, 0) < 600:
+            return []
+        self._dm_hint[who] = now
+        return [fit(f"[{self.tag}] 🧩 {who}: send {what} to me by DM (!puzzle <move>) so nobody can copy it")]
+
     async def cmd_puzzle(self, inc, arg):
         puz = self.state.data.get("puzzle")
         if not puz:
             return [f"[{self.tag}] No puzzle yet - one is posted every day at {self.puzzle_hour}:00"]
         who = self._voter(inc)
         arg = " ".join(inc.rest) if inc.rest else arg
+        url = f" {self._url()}" if self._url() else ""
         if not arg:
             b = pz.position(puz, who)
             side = "White" if b.turn == chess.WHITE else "Black"
-            url = f" {self._url()}" if self._url() else ""
-            return [fit(f"[{self.tag}] 🧩 {puz['rating']}: {side} to move. !puzzle <move>{url}")]
+            if not inc.is_dm:                                  # nothing personal on the channel: it would give moves away
+                return [fit(f"[{self.tag}] 🧩 {puz['rating']}: {side} to move. Answer by DM: !puzzle <move>{url}")]
+            if who in puz["solved"]:
+                return [fit(f"[{self.tag}] 🧩 You solved today's puzzle. New one at {self.puzzle_hour}:00")]
+            prog = int(puz["progress"].get(who, 0))
+            line = f" | your line: {pz.answer_text(puz, prog)}" if prog else ""
+            left = pz.MAX_TRIES - int(puz["tries"].get(who, 0))
+            return [fit(f"[{self.tag}] 🧩 {puz['rating']}: {side} to move{line} | {left} tries left | !puzzle <move>")]
+        if not inc.is_dm:
+            return self._dm_only(inc, "puzzle answers")
         res = pz.attempt(puz, who, arg)
         st = res["status"]
         if st in ("right", "solved", "wrong"):
@@ -374,7 +395,8 @@ class ChessModule(CardsMixin, LeaguePlugin):
         if st == "solved":
             self._player(who)["puzzles"] += 1
             self.state.save()
-            return [fit(f"🧩 {who} solved it with {res['san']}! (#{res['n']} today)")]
+            self.alert("puzzle", fit(f"🧩 {who} solved today's puzzle! (#{res['n']})"))     # the channel hears who, not how
+            return [fit(f"🧩 {res['san']} - solved! You're #{res['n']} today")]
         if st == "right":
             return [fit(f"🧩 {res['san']} ✓ They reply {res['reply_san']}. Your move: !puzzle <move>")]
         if st == "wrong":
@@ -393,6 +415,8 @@ class ChessModule(CardsMixin, LeaguePlugin):
         puz = self.state.data.get("puzzle")
         if not puz:
             return [f"[{self.tag}] No puzzle yet"]
+        if not inc.is_dm:                                      # the solution goes to whoever asks, not to everyone
+            return self._dm_only(inc, "!answer")
         return pack(f"[{self.tag}] 🧩", [pz.answer_text(puz)], sep=" ")
 
     async def cmd_newgame(self, inc, arg):
