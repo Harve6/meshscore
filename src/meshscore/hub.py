@@ -124,7 +124,9 @@ class Hub:
         parts = inc.text.split()
         cmd, rest = parts[0].lower(), parts[1:]
         mod = self.modules.get(cmd[1:]) or self.aliases.get(cmd[1:])
-        if mod:  # explicit "!jays ..." / "!ohl ..." / "!ps ..."
+        if mod and cmd in mod.commands and not (rest and "!" + rest[0].lower() in mod.commands):
+            pass          # a bot whose own command shares its name ("!trivia B", "!word"): that is the command, not "!bot sub"
+        elif mod:  # explicit "!jays ..." / "!ohl ..." / "!ps ..."
             # "!jays" alone is its help; a bot can name another command for that (the market bot: "!market" = the indices)
             cmd, rest = ("!" + rest[0].lower(), rest[1:]) if rest else (getattr(mod, "bare_command", "!help"), [])
         elif inc.is_dm:

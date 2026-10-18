@@ -139,8 +139,10 @@ class HttpPublisher:
     Only files that changed since the last successful upload are sent."""
 
     def __init__(self, api: str = "", token: str = "", min_interval: float = 3.0, clock=time.time, session=None,
-                 template_dir: str = TEMPLATE_DIR, label: str = "chess", timeout: float = 15.0, heartbeat: float = 600.0):
+                 template_dir: str = TEMPLATE_DIR, label: str = "chess", timeout: float = 15.0, heartbeat: float = 600.0,
+                 state_file: str = STATE_FILE):
         self.api = (api or "").rstrip("/")
+        self.state_file = state_file             # several bots can share one board: word.json, trivia.json, ...
         self.heartbeat = float(heartbeat)       # re-send state.json this often even if nothing changed ("still alive")
         self.token, self.min_interval, self.clock = token or "", float(min_interval), clock
         self.template_dir, self.label, self.timeout = template_dir, label, timeout
@@ -189,18 +191,18 @@ class HttpPublisher:
             return False
         try:
             body = dict(files or {})
-            body[STATE_FILE] = json.dumps(state, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            body[self.state_file] = json.dumps(state, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
             page = self._page()
             if page is not None:
                 body["index.html"] = page
             # `updated` changes every call; leave it out of the comparison so an idle game uploads nothing
             stable = {k: v for k, v in state.items() if k != "updated"}
             digests = {n: hashlib.sha1(b).hexdigest() for n, b in body.items()}
-            digests[STATE_FILE] = hashlib.sha1(json.dumps(stable, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+            digests[self.state_file] = hashlib.sha1(json.dumps(stable, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
             changed = {n: b for n, b in body.items() if self.sent.get(n) != digests[n]}
             now = self.clock()
             if not changed and self.heartbeat and self.last_ok and now - self.last_ok >= self.heartbeat:
-                changed = {STATE_FILE: body[STATE_FILE]}               # nothing new, but let the page know we are alive
+                changed = {self.state_file: body[self.state_file]}     # nothing new, but let the page know we are alive
             if not changed or now - self.last_push < self.min_interval * (2 ** min(self.failures, 5)):
                 return False
             self.last_push = now

@@ -12,6 +12,7 @@ Built-in types are registered here. Third-party plugins are found through
 """
 from __future__ import annotations
 
+import importlib
 import importlib.util
 import logging
 import os
@@ -55,6 +56,15 @@ def builtin():
         types["pokemon"] = PokemonModule
     except Exception:
         log.exception("The pokemon bot type could not be loaded; the other bots are unaffected")
+    for typ, mod, cls in (("word", "wordbot", "WordModule"), ("trivia", "triviabot", "TriviaModule"),
+                          ("pickem", "pickembot", "PickemModule"), ("coverage", "coveragebot", "CoverageModule"),
+                          ("weather", "weatherbot", "WeatherModule")):
+        try:                                     # the daily bots (docs/daily-games.md); never take the others down
+            types[typ] = getattr(importlib.import_module(f"{__name__}.{mod}"), cls)
+        except ImportError:
+            log.debug("The %s bot type is not available", typ)
+        except Exception:
+            log.exception("The %s bot type could not be loaded; the other bots are unaffected", typ)
     return types
 
 
