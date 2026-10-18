@@ -19,6 +19,7 @@ class DailyModule(CardsMixin, LeaguePlugin):
 
     json_name = "daily"
     board_title = "Mesh Daily"
+    link_title = "Mesh Daily"          # what the other boards call the shared page in their "Also live" line
 
     def __init__(self, hub, name):
         super().__init__(hub, name)

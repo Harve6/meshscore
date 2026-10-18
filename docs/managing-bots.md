@@ -26,7 +26,7 @@ python -m meshscore bots add --type mlb-postseason --channel "#jays" --name mlb
 
 or just `python -m meshscore bots add` and answer the questions (league, team, channel).
 
-Types: `nhl`, `mlb`, `nfl`, `ohl`, `mlb-postseason`, `market`, `chess`, `pokemon`. Team codes: `python -m meshscore teams nhl`.
+Types: `nhl`, `mlb`, `nfl`, `ohl`, `mlb-postseason`, `market`, `chess`, `pokemon`, `word`, `trivia`, `pickem`, `coverage`, `weather`. Team codes: `python -m meshscore teams nhl`.
 
 **MLB team channel that also follows the whole postseason** (optional): a team bot posts its own team's games all
 season, and in October MLB fans usually want every playoff game, not just their team's. Add `--postseason` and the

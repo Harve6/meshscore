@@ -1,5 +1,4 @@
 """Pokemon: Red / Blue / Yellow memory layouts, the QR codes on the pages, and the daily 'which game' vote. Offline."""
-import asyncio
 import json
 import os
 import re

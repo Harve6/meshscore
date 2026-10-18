@@ -12,7 +12,7 @@ and your favourite team's goals, runs, touchdowns and finals show up on your mes
 🏈 BUF TD! Josh Allen 2 Yd Rush (Tyler Bass Kick) | NE 14-14 BUF | Q2 1:00
 ```
 
-MeshScore is built for MeshCore only (no Meshtastic, no Discord): short messages, airtime-aware, safe to run on a busy
+MeshScore is built for MeshCore only (no Meshtastic): short messages, airtime-aware, safe to run on a busy
 mesh - including **more than one bot on the same air** ([how that works](docs/same-air.md)).
 
 ## What you get
@@ -32,11 +32,26 @@ mesh - including **more than one bot on the same air** ([how that works](docs/sa
 * **Pokemon Red for the whole channel**: the most popular button is pressed in a headless emulator, with a live
   screen on a web page and radio posts for new areas, battles, level ups and badges - bring your own ROM
   ([docs](docs/pokemon.md)).
+* **Daily games for the channel**: a daily word, a trivia question, NHL/NFL/MLB pick'em, a coverage map of who reaches
+  your radio, and weather with Environment Canada warnings - answers by DM, one shared web page
+  ([docs](docs/daily-games.md)).
+* **Keeps itself running**: `meshscore health` checks the bot, the radio link and the web boards, `meshscore backup`
+  saves everything, a dead USB radio is reset automatically, and problems can reach your phone (ntfy) or Discord
+  ([docs](docs/running.md)).
 * **Easy setup**: `meshscore init` finds your radio and channels, `meshscore check` tests everything before you go live.
 * **Quiet by default**: no "I'm online!" spam on restarts, no replaying of games that were already over.
 * **Real-data tests**: the alert logic is replayed against real past games (see [Testing](#testing)).
 
-> **Running it day to day?** See [docs/runbook.md](docs/runbook.md): health check, restart, backups, fixes.
+![Mesh Daily board](docs/images/daily.png)
+
+<p>
+<img src="docs/images/chess.png" width="49%" alt="Chess board">
+<img src="docs/images/pokemon.png" width="49%" alt="Pokemon board (demo placeholder picture)">
+</p>
+
+> The boards above are demos with made-up players (`python tools/demo_site.py`).
+>
+> **Running it day to day?** See [docs/running.md](docs/running.md): health check, restart, backups, fixes.
 
 ## Quick start
 
@@ -169,7 +184,8 @@ Please keep messages short: every byte is airtime someone else on the mesh needs
 ## Disclaimer
 
 MeshScore is an independent hobby project. It is not affiliated with or endorsed by MeshCore, the NHL, MLB, NFL, the
-CHL/OHL, ESPN or any team. Scores come from public, unofficial web endpoints that can change or disappear without
+CHL/OHL, ESPN, Lichess, Nintendo or any team. Pokemon is a trademark of Nintendo / Game Freak / Creatures; MeshScore contains no
+game files - you supply a ROM you own, at your own responsibility. Scores come from public, unofficial web endpoints that can change or disappear without
 notice, and may be delayed or wrong - do not use them for betting or anything that matters. Be a good API citizen: the
 default polling intervals are deliberately gentle; please don't lower them.
 

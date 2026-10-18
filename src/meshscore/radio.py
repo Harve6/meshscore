@@ -30,6 +30,8 @@ class Transport:
     name = "base"
     alive = False
     own_name = ""            # this radio's node name (so a bot never mistakes its own posts for another bot's)
+    fault = True             # did the last failed send look like the radio's fault (not, say, an unknown channel)?
+    forward_unmapped = False  # also deliver messages heard on channels no bot is on (the coverage bot counts them)
 
     async def start(self, on_message, channels): raise NotImplementedError
     async def stop(self): pass
@@ -169,7 +171,6 @@ class LibTransport(Transport):
     def _log_contacts(self):
         """One line saying what the radio can see of the mesh: how many nodes it knows and how recently it heard one."""
         try:
-            import time
             cs = list((getattr(self.mc, "contacts", None) or {}).values())
             kinds = {}
             for c in cs:
@@ -193,7 +194,10 @@ class LibTransport(Transport):
                 log.info("HEARD [%s] %s  (%s hops, SNR %s)", where, str(p.get("text", ""))[:110],
                          hops if isinstance(hops, int) and hops < 64 else "?", p.get("SNR"))
             if chan is None:
-                return
+                known = self.all_names.get(p.get("channel_idx"))
+                if not (self.forward_unmapped and known):
+                    return
+                chan = chan_key(known)                  # heard only: no bot is on it, so nothing will answer
             raw = str(p.get("text", ""))
             name, sep, body = raw.partition(": ")
             if not sep or len(name) > 40:
@@ -239,8 +243,10 @@ class LibTransport(Transport):
     async def send_channel(self, channel, text):
         idx = self.chans.get(chan_key(channel))
         if idx is None:
-            log.warning("TX to unknown channel %s", channel)
+            log.warning("TX to unknown channel %s (add it with: meshscore channel add %s)", channel, channel)
+            self.fault = False
             return False
+        self.fault = True
         r = await self.mc.commands.send_chan_msg(idx, text)
         return self._sent_ok(r)
 

@@ -1,5 +1,5 @@
 # MeshScore daily check: make a backup, run `meshscore health`, and pop up a Windows notification if something
-# needs a hand. Registered as the "MeshScore daily check" scheduled task (see docs/runbook.md); safe to run by hand:
+# needs a hand. Registered as the "MeshScore daily check" scheduled task (see docs/running.md); safe to run by hand:
 #
 #   powershell -ExecutionPolicy Bypass -File windows\daily-check.ps1
 #

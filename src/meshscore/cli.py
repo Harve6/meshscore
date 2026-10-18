@@ -647,6 +647,46 @@ def cmd_ports(args):
     return 0
 
 
+def cmd_channel(args):
+    """meshscore channel            - list the channels on the radio
+    meshscore channel add #daily  - add a hashtag channel (stop the bot first: only one program can use the radio)"""
+    config.load_config(args.config)
+    if ops_running():
+        print("Stop the bot first (only one program can use the radio): Stop-ScheduledTask -TaskName MeshScore")
+        return 1
+    from .radio import LibTransport, chan_key
+
+    async def go():
+        t = LibTransport()
+        try:
+            names = await t.open()
+            if args.action == "list":
+                for i, n in sorted(names.items()):
+                    print(f"  slot {i:<2} {n}")
+                print(f"{len(names)} channel(s) of 16 slots.")
+                return 0
+            name = "#" + chan_key(args.name or "")
+            if len(name) < 2:
+                print("Usage: meshscore channel add #name")
+                return 2
+            if any(chan_key(n) == chan_key(name) for n in names.values()):
+                print(f"{name} is already on the radio.")
+                return 0
+            free = args.slot if args.slot is not None else next((i for i in range(16) if i not in names), None)
+            if free is None:
+                print("All 16 channel slots are used; remove one in the MeshCore app first.")
+                return 1
+            r = await t.mc.commands.set_channel(free, name)
+            if r is None or r.type == t.ET.ERROR:
+                print(f"The radio refused: {getattr(r, 'payload', None)}")
+                return 1
+            print(f"Added {name} in slot {free}. Hashtag channels need no password: anyone can join by name.")
+            return 0
+        finally:
+            await t.stop()
+    return asyncio.run(go())
+
+
 def cmd_scan_ble(args):
     print("Scanning 8 s ...")
     for name, addr, rssi in sorted(scan_ble_devices(), key=lambda r: -(r[2] or -999)):
@@ -796,6 +836,13 @@ def build_parser():
     p = sub.add_parser("edit", help="open meshscore.toml in your text editor")
     add_cfg(p)
     p.set_defaults(fn=cmd_edit)
+
+    p = sub.add_parser("channel", help="list the radio's channels, or add a hashtag channel (bot stopped)")
+    add_cfg(p)
+    p.add_argument("action", nargs="?", choices=["list", "add"], default="list")
+    p.add_argument("name", nargs="?", help="add: the channel, e.g. #daily")
+    p.add_argument("--slot", type=int, help="add: use this slot (default: the first free one)")
+    p.set_defaults(fn=cmd_channel)
 
     sub.add_parser("ports", help="list USB serial ports").set_defaults(fn=cmd_ports)
     sub.add_parser("scan-ble", help="list nearby Bluetooth devices").set_defaults(fn=cmd_scan_ble)

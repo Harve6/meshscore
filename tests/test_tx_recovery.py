@@ -71,3 +71,20 @@ def test_dms_to_unknown_contacts_are_not_a_dead_radio():
     hub = build_hub(t)
     pump(hub, ["a", "b", "c", "d"], kind="dm")
     assert t.alive is True and t.dm_attempts >= 4
+
+
+class NoSuchChannel(Dead):
+    """Like the real radio link: a post to a channel the radio does not have fails without being the radio's fault."""
+    fault = True
+
+    async def send_channel(self, channel, text):
+        self.chan_attempts += 1
+        self.fault = False
+        return False
+
+
+def test_posts_to_a_missing_channel_never_reset_the_radio():
+    t = NoSuchChannel()
+    hub = build_hub(t)
+    pump(hub, ["one", "two", "three", "four"])
+    assert t.alive is True and hub.tx_fail_streak == 0

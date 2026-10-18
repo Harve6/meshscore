@@ -21,7 +21,7 @@ from ..chessplay.cards import CardsMixin
 from ..chessplay.engine import LEVELS, Opponent
 from ..chessplay.game import PIECE_WORDS, CrowdGame, candidates
 from ..chessplay.publish import HttpPublisher, SitePublisher
-from ..core import CFG, DIGEST_GRACE_HOURS, admin_refusal, fit, fits, is_strict_admin, pack, session
+from ..core import DIGEST_GRACE_HOURS, admin_refusal, fit, fits, is_strict_admin, pack, session
 from ..plugin import LeaguePlugin
 
 log = logging.getLogger("meshscore")
@@ -161,7 +161,6 @@ class ChessModule(CardsMixin, LeaguePlugin):
     async def poll(self):
         now = self.clock()
         g = self.game()
-        d = self.state.data
         if not g.data.get("announced"):
             g.data["announced"] = True
             self.state.save()

@@ -40,3 +40,9 @@ backups/
 health-latest.txt
 health-history.log
 health-state.json
+
+# generated demo boards (tools/demo_site.py)
+demo-site/
+
+# personal operations notes
+RUNBOOK.local.md

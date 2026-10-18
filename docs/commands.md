@@ -46,6 +46,21 @@ team's series first; `!playoffs` / `!bracket` are the same)
 `!scores` (also `!score`, `!today`) · `!tomorrow` · `!team CODE` · `!next CODE` · `!standings [east|central|midwest|west|eastern|western]` ·
 `!cup` (Memorial Cup) · `!priority CODE...` · `!follow CODE` / `!unfollow` / `!following` (DM alerts for a team)
 
+## Games and daily bots
+
+Answers go **by DM** to the bot; everything else works on the channel. Details: [chess.md](chess.md), [pokemon.md](pokemon.md),
+[daily-games.md](daily-games.md).
+
+| bot | commands |
+|---|---|
+| chess | `!move e4` / `!move N` (vote) · `!board` · `!puzzle e4` (DM) · `!chess newgame [level]` (admin, DM) |
+| pokemon | `!a` `!b` `!up` `!down` `!left` `!right` `!start` `!select` (`!a 3` = three taps) · `!where` · `!game blue` (the daily vote) · `!pokemon switch blue` · `!pokemon reset confirm` (admin, DM) |
+| word | `!guess crane` (DM) · `!word` · `!wordtop` |
+| trivia | `!trivia B` (DM) · `!trivtop` |
+| pickem | `!pick TOR` / `!pick nhl:TOR` (DM) · `!picks` · `!picktop` |
+| coverage | `!coverage` |
+| weather | `!weather` (`!wx`) · `!warnings` |
+
 ## Alerts (what the channel gets)
 
 | | `max` | `min` |

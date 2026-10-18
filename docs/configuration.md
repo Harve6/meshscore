@@ -55,7 +55,7 @@ One table per bot. `NAME` is also its command prefix on shared channels (`!leafs
 
 | setting | applies to | |
 |---|---|---|
-| `type` | all | `nhl`, `mlb`, `nfl`, `ohl` / `hockeytech`, `mlb-postseason`, or a plugin's type |
+| `type` | all | `nhl`, `mlb`, `nfl`, `ohl` / `hockeytech`, `mlb-postseason`, `market`, `chess`, `pokemon`, `word`, `trivia`, `pickem`, `coverage`, `weather`, or a plugin's type |
 | `channel` | all | channel name on the radio, e.g. `"#leafs"` (several bots may share one) |
 | `channel_index` | all | the radio's slot number, if auto-detection by name fails |
 | `enabled` | all | `false` keeps the table but doesn't start the bot |

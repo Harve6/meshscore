@@ -14,13 +14,12 @@ from meshscore.cli import build_hub
 from meshscore.core import CFG
 from meshscore.pokeplay import game as pg
 from meshscore.pokeplay import ram
-from meshscore.pokeplay.emulator import FakeGameBoy, norm_button
+from meshscore.pokeplay.emulator import norm_button
 from meshscore.radio import Incoming
 
 from test_chess import Radio                         # the recording radio used by the chess tests
 
-DOWNLOADS_ROM = r"C:\Users\you\Downloads\pokemon-red-version-usa-europe-sgb-enhanced_20240821\Pokemon - Red Version (USA, Europe) (SGB Enhanced).gb"
-ROM = os.environ.get("MESHSCORE_POKEMON_ROM") or DOWNLOADS_ROM
+ROM = os.environ.get("MESHSCORE_POKEMON_ROM", "")
 
 
 @pytest.fixture(autouse=True)

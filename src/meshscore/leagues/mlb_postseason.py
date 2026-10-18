@@ -10,7 +10,7 @@ from datetime import timedelta
 
 from ..core import scheduled_in, CFG, DIGEST_GRACE_HOURS, ModeMixin, POST_KINDS, State, _i, fit, fmt_day, fmt_time, now, ord_, pack, sched_days, start_first, when
 from ..hub import Hub
-from .mlb import LEADER_CATS, MlbBase, POST_TYPES, TEAM_ABBR, TEAM_NAMES, dedupe_mgames, last_name, mlb_get, parse_mgame, series_brief, series_line, series_short, short_name, trim_to, play_text
+from .mlb import LEADER_CATS, MlbBase, POST_TYPES, TEAM_ABBR, TEAM_NAMES, dedupe_mgames, last_name, mlb_get, parse_mgame, series_brief, series_line, series_short, short_name, play_text
 from ..radio import Transport, chan_key
 
 log = logging.getLogger("meshscore")

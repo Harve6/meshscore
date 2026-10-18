@@ -175,28 +175,31 @@ class PickemModule(DailyModule):
         s = self._slate(self.today())
         return f" | slate {len(s['games']) if s else 0} games"
 
-    def _find(self, team: str):
-        """(slate, game) for the first open game today involving this team."""
+    def _find(self, team: str, league: str = ""):
+        """(slate, [games]) today involving this team (optionally in one league: "nhl:TOR")."""
         s = self._slate(self.today())
         if not s:
-            return None, None
-        for g in s["games"].values():
-            if team in (g["home"], g["away"]):
-                return s, g
-        return s, None
+            return None, []
+        return s, [g for g in s["games"].values() if team in (g["home"], g["away"]) and (not league or g["league"] == league)]
 
     async def cmd_pick(self, inc, arg):
         if not inc.is_dm:
             return self._dm_only(inc, "your pick", "!pick TOR")
-        team = (arg or "").strip().upper()
-        if not team:
+        text = (" ".join(inc.rest) if inc.rest else arg or "").strip()
+        if not text:
             return await self.cmd_picks(inc, "")
-        s, g = self._find(team)
+        league, _, team = text.rpartition(":")                 # "nhl:TOR" picks the hockey game when TOR also plays baseball
+        team, league = team.strip().upper(), league.strip().lower()
+        s, found = self._find(team, league)
         if not s or not s["games"]:
             return [fit(f"[{self.tag}] No games on today's slate yet")]
-        if g is None:
+        if not found:
             teams = sorted({t for x in s["games"].values() for t in (x["away"], x["home"])})
             return [fit(f"[{self.tag}] No {team} game today. Teams: {' '.join(teams)}")]
+        if len(found) > 1:
+            opts = " or ".join(f"!pick {x['league']}:{team}" for x in found)
+            return [fit(f"[{self.tag}] {team} plays twice today - {opts}")]
+        g = found[0]
         if g["state"] != "pre" or self.clock() >= g["start"]:
             return [fit(f"[{self.tag}] {g['away']}@{g['home']} has started - picks are locked")]
         who = self._voter(inc)

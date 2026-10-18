@@ -67,9 +67,9 @@ class DRig:
                 if self.hub.cmdq.empty() and self.hub.out.empty():
                     return
 
-    async def say(self, text, name="Ann", dm=False, hops=1):
+    async def say(self, text, name="Ann", dm=False, hops=1, snr=5.0, channel=None):
         key = ("k" + name.lower() * 8)[:32] if dm else ""
-        await self.hub.on_message(Incoming(text, dm, name, key, hops, 5.0, "" if dm else self.channel))
+        await self.hub.on_message(Incoming(text, dm, name, key, hops, snr, "" if dm else (channel or self.channel)))
         await self.settle()
 
     async def tick(self, advance=0):

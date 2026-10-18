@@ -1,5 +1,4 @@
 """Saying a chess move in simple words: from-to, 'knight e3', numbered choices when two pieces can go there."""
-import asyncio
 
 import chess
 import pytest

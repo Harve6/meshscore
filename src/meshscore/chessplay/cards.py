@@ -99,10 +99,12 @@ class CardsMixin:
 
     def _board_links(self) -> list:
         """The other web boards run by bots in this same MeshScore (so each page can link to its sibling)."""
-        out = []
+        out, seen = [], {str(getattr(self, "site_url", "") or "")}
         for m in getattr(self.hub, "modules", {}).values():
-            url, title = str(getattr(m, "site_url", "") or ""), str(getattr(m, "board_title", "") or "")
-            if m is not self and url and title:
+            url = str(getattr(m, "site_url", "") or "")
+            title = str(getattr(m, "link_title", "") or getattr(m, "board_title", "") or "")
+            if m is not self and url and title and url not in seen:        # several bots can share one board: list it once
+                seen.add(url)
                 out.append({"title": title, "url": url})
         return out
 

@@ -98,7 +98,7 @@ def test_the_page_qr_is_made_from_the_contact_add_link_and_shows_the_key():
 
 
 def test_the_screen_is_never_a_blank_fade(tmp_path):
-    rom = os.environ.get("MESHSCORE_POKEMON_ROM") or r"C:\Users\you\Downloads\pokemon-red-version-usa-europe-sgb-enhanced_20240821\Pokemon - Red Version (USA, Europe) (SGB Enhanced).gb"
+    rom = os.environ.get("MESHSCORE_POKEMON_ROM", "")
     if not os.path.isfile(rom):
         pytest.skip("no ROM")
     pytest.importorskip("pyboy")
@@ -133,7 +133,6 @@ def test_the_page_says_who_the_radio_has_heard():
 
 def test_the_heard_field_is_stable_between_polls():
     """A time, not an age: an idle channel must not make the page state change every second (that was one upload per poll)."""
-    import time as _t
 
     async def go():
         async with Rig(site_dir="site", site_push=False, cooldown=0) as r:
@@ -146,7 +145,7 @@ def test_the_heard_field_is_stable_between_polls():
 
 def test_text_has_finished_printing_when_the_picture_is_taken():
     """Oak's intro used to show half-printed text boxes (people pressed again, or thought it was frozen)."""
-    rom = os.environ.get("MESHSCORE_POKEMON_ROM") or r"C:\Users\you\Downloads\pokemon-red-version-usa-europe-sgb-enhanced_20240821\Pokemon - Red Version (USA, Europe) (SGB Enhanced).gb"
+    rom = os.environ.get("MESHSCORE_POKEMON_ROM", "")
     if not os.path.isfile(rom):
         pytest.skip("no ROM")
     pytest.importorskip("pyboy")

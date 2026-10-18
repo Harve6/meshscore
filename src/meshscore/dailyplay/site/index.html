@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mesh Daily</title>
+<style>
+:root {
+  --bg: #f4f1ea; --card: #fffdf8; --ink: #23201b; --muted: #6f685c; --line: #ddd5c5; --accent: #2f6f4e; --bar: #2f6f4e30;
+  --warn: #b3261e; --warnbg: #b3261e14;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #17191c; --card: #1f2226; --ink: #ece8df; --muted: #9a9486; --line: #33373d; --accent: #6fcf97; --bar: #6fcf9733;
+          --warn: #ff8a80; --warnbg: #ff8a8018; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 1040px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 1.35rem; margin: 4px 0 2px; }
+h2 { font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; font-weight: 600; }
+.sub { color: var(--muted); margin: 0 0 14px; font-size: .92rem; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; align-items: start; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px; min-width: 0; }
+.muted { color: var(--muted); }
+code { background: var(--bar); padding: 0 5px; border-radius: 4px; font-size: .92em; }
+a { color: var(--accent); }
+table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+td, th { padding: 3px 4px; border-bottom: 1px solid var(--line); text-align: left; }
+td:last-child, th:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+.big { font-size: 1.05rem; font-weight: 600; }
+.row { position: relative; display: flex; justify-content: space-between; padding: 3px 8px; margin: 3px 0; border-radius: 6px; overflow: hidden; }
+.row i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--bar); z-index: 0; }
+.row span { position: relative; z-index: 1; }
+.grid5 { letter-spacing: 1px; white-space: nowrap; }
+.warn { background: var(--warnbg); border: 1px solid var(--warn); color: var(--ink); border-radius: 8px; padding: 6px 10px; margin: 6px 0; font-size: .92rem; }
+.strip { display: flex; gap: 3px; align-items: flex-end; height: 48px; margin-top: 6px; }
+.strip b { flex: 1; background: var(--accent); min-height: 2px; border-radius: 2px 2px 0 0; opacity: .85; }
+.how { background: var(--bar); border-radius: 8px; padding: 8px 10px; margin-top: 8px; font-size: .92rem; }
+.contact { display: grid; grid-template-columns: 176px 1fr; gap: 12px; align-items: start; }
+.qr { background: #fff; padding: 6px; border-radius: 6px; width: 176px; height: 176px; }
+.qr svg { display: block; width: 100%; height: 100%; }
+.uri { word-break: break-all; font-size: .72rem; }
+@media (max-width: 420px) { .contact { grid-template-columns: minmax(0, 1fr); } }
+footer { color: var(--muted); font-size: .85rem; margin: 18px 0 8px; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Mesh Daily</h1>
+  <p class="sub">One small thing a day for the mesh: a word, a trivia question, a pick'em, and what the radio hears. Answers go to the bot <b>by DM</b>, so nobody can copy them off the air.</p>
+  <p class="sub" id="links"></p>
+  <div class="grid" id="grid">
+
+    <section class="card" id="c-word" hidden>
+      <h2>Mesh Word</h2>
+      <div class="big" id="word-head"></div>
+      <p class="muted" id="word-how"></p>
+      <div id="word-today"></div>
+      <h2 style="margin-top:12px">Recent words</h2><div id="word-hist" class="muted"></div>
+      <h2 style="margin-top:12px">Streaks</h2><table id="word-lead"></table>
+    </section>
+
+    <section class="card" id="c-trivia" hidden>
+      <h2>Mesh Trivia</h2>
+      <div class="big" id="triv-q"></div>
+      <div id="triv-choices" style="margin:6px 0"></div>
+      <p class="muted" id="triv-how"></p>
+      <h2 style="margin-top:12px">Yesterday</h2><div id="triv-hist" class="muted"></div>
+      <h2 style="margin-top:12px">Streaks</h2><table id="triv-lead"></table>
+    </section>
+
+    <section class="card" id="c-pickem" hidden>
+      <h2>Pick'em</h2>
+      <div class="big" id="pick-head"></div>
+      <table id="pick-games"></table>
+      <p class="muted" id="pick-how"></p>
+      <h2 style="margin-top:12px">Leaderboard</h2><table id="pick-lead"></table>
+    </section>
+
+    <section class="card" id="c-weather" hidden>
+      <h2>Weather</h2>
+      <div class="big" id="wx-now"></div>
+      <div id="wx-days" class="muted"></div>
+      <div id="wx-alerts"></div>
+    </section>
+
+    <section class="card" id="c-coverage" hidden>
+      <h2>Coverage: who the radio hears</h2>
+      <div class="big" id="cov-head"></div>
+      <div id="cov-hops" style="margin-top:6px"></div>
+      <p class="muted" id="cov-snr"></p>
+      <h2 style="margin-top:10px">Last 14 days</h2><div class="strip" id="cov-days"></div>
+      <h2 style="margin-top:12px">Recently heard</h2><table id="cov-recent"></table>
+    </section>
+
+    <section class="card" id="c-join" hidden>
+      <h2>Join <span id="join-name">the channel</span></h2>
+      <div class="contact">
+        <div id="join-qr" class="qr"></div>
+        <div>
+          <p style="margin:0 0 6px">Scan in the MeshCore app to join the channel. To get the bot's private replies, also add it as a contact.</p>
+          <p class="muted" style="margin:0" id="join-how"></p>
+        </div>
+      </div>
+      <div class="contact" id="contact-row" style="margin-top:12px" hidden>
+        <div id="contact-qr" class="qr"></div>
+        <div><p style="margin:0 0 4px">Add the bot as a contact</p>
+          <p class="muted uri" id="contact-name" style="margin:0"></p><p class="muted uri" id="contact-key" style="margin:4px 0"></p></div>
+      </div>
+    </section>
+  </div>
+  <footer>Updated <span id="updated">-</span>. A MeshScore bot. <span id="heard"></span></footer>
+</main>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const FILES = ["word", "trivia", "pickem", "coverage", "weather"];
+const S = {};
+const clear = el => { while (el.firstChild) el.removeChild(el.firstChild); };
+function ago(sec) { if (sec < 90) return "just now"; if (sec < 5400) return Math.round(sec / 60) + " min ago"; if (sec < 172800) return Math.round(sec / 3600) + " h ago"; return Math.round(sec / 86400) + " days ago"; }
+function bar(parent, label, value, max, right) {
+  const row = document.createElement("div"); row.className = "row";
+  const i = document.createElement("i"); i.style.width = (max ? 100 * value / max : 0) + "%";
+  const a = document.createElement("span"); a.textContent = label;
+  const b = document.createElement("span"); b.textContent = right === undefined ? value : right;
+  row.append(i, a, b); parent.appendChild(row);
+}
+function table(el, rows, empty) {
+  clear(el);
+  if (!rows.length) { const r = el.insertRow(); const c = r.insertCell(); c.textContent = empty; c.className = "muted"; return; }
+  for (const r of rows) { const tr = el.insertRow(); r.forEach(v => { tr.insertCell().textContent = v; }); }
+}
+function clock(ts) { const d = new Date(ts * 1000); let h = d.getHours(); const m = d.getMinutes(); const ap = h < 12 ? "a" : "p"; h = h % 12 || 12; return h + (m ? ":" + String(m).padStart(2, "0") : "") + ap; }
+
+function word(s) {
+  const p = s.puzzle;
+  $("c-word").hidden = false;
+  $("word-head").textContent = p ? "Word #" + p.no + " - " + p.players + " playing" : "No word yet";
+  $("word-how").textContent = "5 letters, 6 tries. DM the bot: !guess crane. New word every day at " + s.hour + ":00.";
+  const t = $("word-today"); clear(t);
+  const done = s.today.filter(x => x.tries !== null);
+  const going = s.today.length - done.length;
+  for (const x of done) {
+    const row = document.createElement("div");
+    row.innerHTML = "";
+    const n = document.createElement("b"); n.textContent = x.name + " " + x.tries + "/6";
+    row.appendChild(n);
+    (x.grid || []).forEach(g => { const d = document.createElement("div"); d.className = "grid5"; d.textContent = g; row.appendChild(d); });
+    row.style.margin = "6px 0"; t.appendChild(row);
+  }
+  if (going) { const m = document.createElement("div"); m.className = "muted"; m.textContent = going + " still guessing"; t.appendChild(m); }
+  if (!s.today.length) t.textContent = "Nobody has played yet.";
+  const h = $("word-hist");
+  h.textContent = s.history.length ? s.history.map(x => "#" + x.no + " " + x.answer.toUpperCase() + " (" + x.solved + "/" + x.played + ")").join("  ·  ") : "None yet";
+  table($("word-lead"), s.leaders.map(x => [x.name, "best " + x.best + " · " + x.won + " wins"]), "Nobody yet");
+}
+function trivia(s) {
+  const c = s.current;
+  $("c-trivia").hidden = false;
+  $("triv-q").textContent = c ? "#" + c.no + " " + c.q : "No question yet";
+  const ch = $("triv-choices"); clear(ch);
+  if (c) c.choices.forEach((x, i) => { const d = document.createElement("div"); d.textContent = "ABCD"[i] + ") " + x; ch.appendChild(d); });
+  $("triv-how").textContent = c ? c.answered + " answered. DM the bot: !trivia B. New question every day at " + s.hour + ":00." : "";
+  $("triv-hist").textContent = s.history.length ? s.history.slice(0, 3).map(x => "#" + x.no + " " + x.answer + " (" + x.right + "/" + x.played + ")").join("  ·  ") : "None yet";
+  table($("triv-lead"), s.leaders.map(x => [x.name, "best " + x.best + " · " + x.right + " right"]), "Nobody yet");
+}
+function pickem(s) {
+  $("c-pickem").hidden = false;
+  $("pick-head").textContent = s.games.length ? "Today: " + s.games.length + " game" + (s.games.length === 1 ? "" : "s") : "No games today";
+  table($("pick-games"), s.games.map(g => {
+    const score = g.state === "pre" ? clock(g.start) : g.away_score + "-" + g.home_score + (g.state === "post" ? " F" : " live");
+    return [g.away + " @ " + g.home + (g.winner ? "  (" + g.winner + ")" : ""), g.picks + " pick" + (g.picks === 1 ? "" : "s"), score];
+  }), "Nothing on the slate");
+  $("pick-how").textContent = "DM the bot before the game starts: !pick TOR. Picks are private until the game is over.";
+  table($("pick-lead"), s.leaders.map(x => [x.name, x.week + " this week · " + x.season + " season"]), "Nobody has scored yet");
+}
+function weather(s) {
+  $("c-weather").hidden = false;
+  $("wx-now").textContent = s.now ? s.place + ": " + Math.round(s.now.temp) + "°C, " + s.now.text + (s.now.wind != null ? ", wind " + Math.round(s.now.wind) + " km/h " + s.now.dir : "") : s.place;
+  $("wx-days").textContent = s.days.map((d, i) => (i === 0 ? "Today" : i === 1 ? "Tomorrow" : d.date.slice(5)) + " " + d.hi + "/" + d.lo + "°" + (d.pop ? " " + d.pop + "%" : "") + " " + d.text).join("  ·  ");
+  const a = $("wx-alerts"); clear(a);
+  for (const x of s.alerts) { const d = document.createElement("div"); d.className = "warn"; d.textContent = "⚠ " + x.name + ": " + x.text; a.appendChild(d); }
+}
+function coverage(s) {
+  $("c-coverage").hidden = false;
+  const h = s.h24, h7 = s.d7;
+  $("cov-head").textContent = h.msgs ? h.nodes + " nodes / " + h.msgs + " messages in 24 h (" + h7.nodes + " nodes in 7 days)" : "Nothing heard in the last 24 h";
+  const box = $("cov-hops"); clear(box);
+  const mx = Math.max(1, ...Object.values(h7.hops));
+  for (const k of ["0", "1", "2", "3+"]) bar(box, k === "0" ? "Direct (0 hops)" : k + (k === "1" ? " hop" : " hops"), h7.hops[k], mx, h7.hops[k] + " msgs");
+  $("cov-snr").textContent = h7.snr.n ? "Signal (SNR, 7 days): median " + h7.snr.p50.toFixed(1) + ", weakest tenth " + h7.snr.p10.toFixed(1) + ", strongest tenth " + h7.snr.p90.toFixed(1) + " dB" : "";
+  const st = $("cov-days"); clear(st);
+  const dm = Math.max(1, ...s.days.map(d => d.msgs));
+  for (const d of s.days) { const b = document.createElement("b"); b.style.height = Math.max(4, 100 * d.msgs / dm) + "%"; b.title = d.date + ": " + d.msgs + " msgs, " + d.nodes + " nodes"; st.appendChild(b); }
+  const now = Date.now() / 1000;
+  table($("cov-recent"), s.recent.map(r => [r.who, (r.hops == null ? "?" : r.hops) + " hop" + (r.hops === 1 ? "" : "s"), ago(now - r.last)]), "Nobody yet");
+}
+function join() {
+  const src = FILES.map(f => S[f]).find(x => x && x.channel && x.channel.name);
+  if (!src) return;
+  $("c-join").hidden = false;
+  const ch = src.channel;
+  $("join-name").textContent = ch.name;
+  $("join-how").textContent = ch.name.charAt(0) === "#" ? "Or by hand: add a hashtag channel named " + ch.name.slice(1) + " (no password needed)." : "";
+  const q = $("join-qr");
+  if (ch.svg) q.innerHTML = ch.svg; else q.style.display = "none";
+  const c = src.contact;
+  $("contact-row").hidden = !(c && c.svg);
+  if (c && c.svg) { $("contact-qr").innerHTML = c.svg; $("contact-name").textContent = c.name ? "Name: " + c.name : ""; $("contact-key").textContent = c.public_key ? "Public key: " + c.public_key : ""; }
+  const l = $("links"); clear(l);
+  if (src.links && src.links.length) { l.append("Also live: "); src.links.forEach((x, i) => { const a = document.createElement("a"); a.href = x.url; a.textContent = x.title; l.appendChild(a); if (i < src.links.length - 1) l.append(" · "); }); }
+  const hd = src.heard;
+  $("heard").textContent = hd && hd.last ? "The bot's radio last heard someone on the channel " + ago(Math.max(0, Date.now() / 1000 - hd.last)) + " · " + hd.senders_24h + " in the last 24 h." : "";
+}
+const R = { word, trivia, pickem, coverage, weather };
+async function load() {
+  let newest = 0;
+  await Promise.all(FILES.map(async f => {
+    try {
+      const r = await fetch(f + ".json?t=" + Date.now(), { cache: "no-store" });
+      if (!r.ok) throw new Error(r.status);
+      S[f] = await r.json();
+      newest = Math.max(newest, S[f].updated || 0);
+      R[f](S[f]);
+    } catch (e) { if (!S[f]) $("c-" + (f === "pickem" ? "pickem" : f)).hidden = true; }
+  }));
+  join();
+  if (newest) $("updated").textContent = ago(Date.now() / 1000 - newest);
+}
+load(); setInterval(load, 20000);
+</script>
+</body>
+</html>

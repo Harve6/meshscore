@@ -1,10 +1,21 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
+
+* **Daily games** on one shared channel and web page ([docs/daily-games.md](docs/daily-games.md)): **Mesh Word** (daily
+  5-letter word), **Mesh Trivia**, **Pick'em** (NHL/NFL/MLB/NBA via ESPN, locks at the start, season table), **Coverage**
+  (hops and signal of everything the radio hears; posts nothing) and **Weather** (Open-Meteo + Environment Canada
+  warnings). Answers are DM-only; the channel hears one post per game per day.
+* **Phone alerts**: `[alerts]` with an ntfy topic and/or Discord webhook; `meshscore health --notify` only speaks on a
+  change (problem, reminder, recovered); `windows/watchdog.ps1` runs it every 15 minutes.
+* `meshscore channel [add #name]` lists / adds channels on the radio. Posts to a channel the radio lacks no longer
+  count as a dead radio.
+* Chess puzzle answers are DM-only. Demo boards with made-up players (`tools/demo_site.py`) and screenshots in the README.
+* The personal runbook became the generic [docs/running.md](docs/running.md).
 
 * **Running it without help:** `meshscore health` (bot, radio link, sending, crashes, each web board, backups, disk;
   exit code 1 = needs a hand), `meshscore backup` / `--restore`, `run --forever` (restarts itself after an error and logs
-  why), and `windows/daily-check.ps1` (backup + health + a Windows notification on problems). See docs/runbook.md.
+  why), and `windows/daily-check.ps1` (backup + health + a Windows notification on problems). See docs/running.md.
 * A radio that stops accepting messages (hung / replugged) is reset after 3 failed posts; the radio's refusal is logged.
 * Pokemon waits for text to finish printing before taking the picture; chess accepts `g1 f3`, `knight e3`, numbered
   choices; board uploads no longer churn and idle boards send a heartbeat.

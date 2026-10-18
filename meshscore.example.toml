@@ -83,5 +83,33 @@ channel = "#leafs"
 # site_dir = "C:/Users/you/meshscore-pokemon"   # a clone of its own GitHub Pages repo
 # site_url = "https://YOU.github.io/meshscore-pokemon/"
 
+# --- daily games on one shared channel, answered by DM (docs/daily-games.md) ---
+# [bots.word]                 # a daily 5-letter word
+# type = "word"
+# channel = "#daily"
+# [bots.trivia]               # a daily multiple-choice question
+# type = "trivia"
+# channel = "#daily"
+# [bots.pickem]               # pick the winners of today's games (ESPN scoreboard)
+# type = "pickem"
+# channel = "#daily"
+# leagues = ["nhl", "nfl"]
+# teams = ["TOR", "BUF"]
+# [bots.coverage]             # who reaches your radio, how far (posts nothing)
+# type = "coverage"
+# channel = "#daily"
+# [bots.weather]              # !weather + Environment Canada warnings
+# type = "weather"
+# channel = "#daily"
+# place = "Kitchener"
+# lat = 43.4516
+# lon = -80.4925
+# (each can also share one web page: site_api / site_token / site_url, see docs/daily-games.md)
+
+# --- phone / chat alerts when the bot needs a hand: meshscore health --notify (docs/running.md) ---
+# [alerts]
+# ntfy_topic = "pick-a-long-random-name"     # install the free ntfy app and subscribe to this topic
+# discord_webhook = ""
+
 # [plugins]
 # dirs = ["./my_plugins"]

@@ -147,3 +147,21 @@ def test_no_games_a_void_game_and_the_web_state(monkeypatch):
 def test_clock_text_is_short():
     t = pickembot.clock_text(1_800_000_000 + 40000)
     assert t.endswith(("a", "p")) and len(t) <= 6
+
+
+def test_a_team_in_two_leagues_asks_which_one(monkeypatch):
+    set_time(monkeypatch, d=14, h=9, mi=5)
+
+    async def go():
+        async with DRig("pickem", leagues=["nhl", "mlb"]) as r:
+            base = 1_800_000_000 + 40000
+            both = [Game("1", "nhl", base, "pre", "TOR", "NYI"), Game("2", "mlb", base + 600, "pre", "TOR", "BOS")]
+            r.m.fetch = lambda league, day: [g for g in both if g.league == league]
+            await r.tick()
+            await r.say("!pick TOR", name="Ann", dm=True)
+            assert "plays twice" in r.last_dm() and "!pick nhl:TOR" in r.last_dm() and "!pick mlb:TOR" in r.last_dm()
+            assert r.m.state.data["slates"][0]["picks"] == {}
+            await r.say("!pick mlb:tor", name="Ann", dm=True)
+            assert "✓ TOR in BOS@TOR" in r.last_dm()
+            assert r.m.state.data["slates"][0]["picks"] == {"Ann": {"2": "TOR"}}
+    run(go())

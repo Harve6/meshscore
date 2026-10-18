@@ -1,0 +1,59 @@
+{
+ "latitude": 43.446304,
+ "longitude": -80.49335,
+ "generationtime_ms": 1.1448860168457031,
+ "utc_offset_seconds": -14400,
+ "timezone": "America/Toronto",
+ "timezone_abbreviation": "GMT-4",
+ "elevation": 337.0,
+ "current_units": {
+  "time": "iso8601",
+  "interval": "seconds",
+  "temperature_2m": "\u00b0C",
+  "wind_speed_10m": "km/h",
+  "wind_direction_10m": "\u00b0",
+  "weather_code": "wmo code"
+ },
+ "current": {
+  "time": "2026-10-18T13:30",
+  "interval": 900,
+  "temperature_2m": 14.4,
+  "wind_speed_10m": 22.4,
+  "wind_direction_10m": 217,
+  "weather_code": 0
+ },
+ "daily_units": {
+  "time": "iso8601",
+  "temperature_2m_max": "\u00b0C",
+  "temperature_2m_min": "\u00b0C",
+  "precipitation_probability_max": "%",
+  "weather_code": "wmo code"
+ },
+ "daily": {
+  "time": [
+   "2026-10-18",
+   "2026-10-19",
+   "2026-10-20"
+  ],
+  "temperature_2m_max": [
+   15.8,
+   17.4,
+   15.7
+  ],
+  "temperature_2m_min": [
+   3.3,
+   3.4,
+   3.4
+  ],
+  "precipitation_probability_max": [
+   0,
+   0,
+   0
+  ],
+  "weather_code": [
+   0,
+   3,
+   3
+  ]
+ }
+}

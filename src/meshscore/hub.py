@@ -48,6 +48,8 @@ class Hub:
 
     def add(self, mod):
         self.modules[mod.name] = mod
+        if hasattr(mod, "on_heard"):                   # e.g. the coverage bot: wants every message the radio hears
+            self.t.forward_unmapped = True
         self.by_channel.setdefault(chan_key(mod.channel), []).append(mod)   # modules may share a channel (first match wins)
         for a in getattr(mod, "aliases", ()):
             self.aliases[a] = mod
@@ -106,7 +108,7 @@ class Hub:
                 await asyncio.sleep(TX_RETRY_WAIT)
             if ok and kind == "chan":
                 self.airtime.record()
-            if kind == "chan":                       # (a DM to someone not in the contacts is not a dead radio)
+            if kind == "chan" and (ok or getattr(self.t, "fault", True)):   # (an unknown channel / unknown contact is not a dead radio)
                 self.tx_fail_streak = 0 if ok else self.tx_fail_streak + 1
             if self.tx_fail_streak >= TX_FAIL_RECONNECT and self.t.alive:
                 # the port is open but the radio refuses everything (hung, unplugged and replugged, cold battery ...):
@@ -151,6 +153,13 @@ class Hub:
             self.same_air.hear(inc.channel, text, inc.sender_name)      # what the air already says (for dedupe)
             if inc.sender_name and not text.startswith(SELF_MARKERS):
                 self.heard.setdefault(chan_key(inc.channel), {})[inc.sender_name] = time.time()
+            for m in self.modules.values():
+                hook = getattr(m, "on_heard", None)
+                if hook:
+                    try:
+                        hook(inc)
+                    except Exception:
+                        log.exception("%s on_heard failed", m.name)
         if not text.startswith("!") or any(m in text for m in SELF_MARKERS) \
                 or any(f"[{m.tag}" in text for m in self.modules.values()):
             return

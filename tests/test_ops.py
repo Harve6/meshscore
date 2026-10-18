@@ -1,5 +1,4 @@
 """meshscore health / backup / run --forever: the tools for running MeshScore without help."""
-import os
 import time
 import zipfile
 from datetime import datetime
@@ -7,7 +6,6 @@ from datetime import datetime
 import pytest
 
 from meshscore import cli, config, ops
-from meshscore.core import CFG
 
 
 @pytest.fixture(autouse=True)

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "meshscore"
-version = "0.1.0"
+version = "0.2.0"
 description = "Live sports scores for MeshCore LoRa mesh channels: NHL, MLB, NFL, OHL/CHL - with a bot per team."
 readme = "README.md"
 license = { text = "MIT" }
@@ -46,6 +46,7 @@ where = ["src"]
 [tool.setuptools.package-data]
 "meshscore.chessplay" = ["site/*", "site/.nojekyll"]
 "meshscore.pokeplay" = ["site/*", "site/.nojekyll"]
+"meshscore.dailyplay" = ["site/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
