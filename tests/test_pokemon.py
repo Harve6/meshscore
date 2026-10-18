@@ -362,7 +362,7 @@ def test_missing_rom_or_emulator_never_takes_the_other_bots_down():
         t = Radio()
         hub = build_hub(t)
         m = hub.modules["pokemon"]
-        assert m.gb is None and "ROM not found" in m.problem
+        assert m.gb is None and ("ROM not found" in m.problem or "not installed" in m.problem)
         assert await m.poll() == 300
         w = asyncio.create_task(hub.tx_worker())
         c = asyncio.create_task(hub.cmd_worker())
